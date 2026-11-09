@@ -41,6 +41,9 @@ export type Settings = {
   syncReference: string | null;
   followSourceVolume: boolean;
   pauseWhenSilent: boolean;
+  autoCheckUpdates: boolean;
+  /** A version the user chose to skip. */
+  skippedUpdate: string | null;
   theme: ThemeChoice;
   locale: Locale;
   closeToTray: boolean;
@@ -94,6 +97,8 @@ export type Snapshot = {
   outputs: OutputStatus[];
   clicks: boolean;
   calibrating: string | null;
+  /** Version of an available update, if the main window found one. */
+  update: string | null;
 };
 
 export type Failure =
@@ -134,6 +139,8 @@ export type PreferencesPatch = Partial<{
   syncReference: string | null;
   followSourceVolume: boolean;
   pauseWhenSilent: boolean;
+  autoCheckUpdates: boolean;
+  skippedUpdate: string | null;
 }>;
 
 export const ipc = {
@@ -153,12 +160,14 @@ export const ipc = {
   setOutputGain: (deviceId: string, gainDb: number) =>
     invoke<void>("set_output_gain", { deviceId, gainDb }),
   setClicks: (on: boolean) => invoke<void>("set_clicks", { on }),
+  setUpdateNotice: (version: string | null) => invoke<void>("set_update_notice", { version }),
   setPreferences: (patch: PreferencesPatch) => invoke<Settings>("set_preferences", { patch }),
   getAutostart: () => invoke<boolean>("get_autostart"),
   setAutostart: (on: boolean) => invoke<boolean>("set_autostart", { on }),
   startCalibration: (deviceId: string) => invoke<void>("start_calibration", { deviceId }),
   openSoundSettings: () => invoke<void>("open_sound_settings"),
   showMainWindow: () => invoke<void>("show_main_window"),
+  showUpdatePrompt: () => invoke<void>("show_update_prompt"),
   hideTrayPopup: () => invoke<void>("hide_tray_popup"),
   quit: () => invoke<void>("quit_app"),
 };

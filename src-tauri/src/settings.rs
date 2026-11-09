@@ -99,6 +99,10 @@ pub struct Settings {
     pub follow_source_volume: bool,
     /// Close every stream after a while of silence so Windows can sleep.
     pub pause_when_silent: bool,
+    /// Look for a new version shortly after launch and a few times a day.
+    pub auto_check_updates: bool,
+    /// A version the user chose to skip: it stays quiet until a newer one ships.
+    pub skipped_update: Option<String>,
     /// "system" | "light" | "dark"
     pub theme: String,
     /// "en" | "fr"
@@ -119,6 +123,8 @@ impl Default for Settings {
             sync_reference: None,
             follow_source_volume: true,
             pause_when_silent: false,
+            auto_check_updates: true,
+            skipped_update: None,
             theme: "system".into(),
             locale: default_locale(),
             close_to_tray: true,
@@ -211,6 +217,7 @@ mod tests {
         assert_eq!(s.version, 0);
         assert!(s.follow_source_volume);
         assert!(!s.pause_when_silent);
+        assert!(s.auto_check_updates);
     }
 
     #[test]

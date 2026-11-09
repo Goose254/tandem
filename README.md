@@ -39,6 +39,7 @@ No virtual audio cable or driver is needed.
 - **Optional pause when nothing plays**, so Windows can go to sleep.
 - **Tray icon** with a status popup and a quick on/off switch. Close-to-tray, launch at login,
   start hidden.
+- **Updates itself** from the GitHub releases, when you say so.
 - English and French, light and dark themes (follows the system by default).
 
 ## How it works
@@ -80,7 +81,14 @@ The installer is not code-signed, so Windows SmartScreen may show "Windows prote
 the first time: choose "More info", then "Run anyway". To avoid trusting a download, build it
 yourself (see [Develop](#develop)); the result lands in `target/release/bundle/nsis/`.
 
-There is no automatic update yet: install a newer release over the old one, settings are kept.
+**Updates** arrive inside the app. Tandem looks at this repository's latest published release
+shortly after it starts and a few times a day; when there is a newer version, a card in the
+window (and a line in the tray popup) offers "Update now", "Later" or "Skip this version".
+Updating downloads the signed installer, runs it and restarts Tandem; the sound stops for a few
+seconds and your settings are kept. Nothing is installed without your go-ahead, the automatic
+check can be turned off in Settings > Updates, and "Check for updates" is always there. Each
+download is verified against a signature before it runs. Version 1.0.0 has no updater: install
+1.0.1 or later by hand once.
 
 **Recommended setup:** make the slowest device (the Bluetooth amp) the Windows default output,
 leave the source on "Windows default output", and add the other devices as outputs.
@@ -140,22 +148,36 @@ cd tandem
 npm install
 npm run tauri dev      # run the app with hot reload
 npm run dev            # UI only, in a browser, with a simulated backend
-npm run release        # build the release app and the NSIS installer
+npm run release        # build the signed release app, installer and update files (needs the key)
+npm run release:unsigned  # the same without update signing: for local builds and forks
 npm run licenses       # regenerate THIRD_PARTY_LICENSES.md after changing dependencies
 cargo test --release   # engine, calibration and settings tests
 ```
 
 Continuous integration (`.github/workflows/ci.yml`) runs the type-check, the UI build and the
-tests on every push. To publish a release, set the same version in `package.json`,
-`src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json` and `engine/Cargo.toml`, then push a tag:
+tests on every push.
 
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+### Releases
 
-`.github/workflows/release.yml` builds the installer and attaches it to a draft release, to
-review and publish by hand.
+In-app updates are signed. The public key is in `src-tauri/tauri.conf.json`; the private key
+never goes in the repository. It lives in the maintainer's `~/.tauri/tandem-updater.key` and in
+the repository secret `TAURI_SIGNING_PRIVATE_KEY` (plus `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` if
+the key has a password). Keep a backup of that file: without it no installed copy can be
+updated any more. To build a signed release locally, point the same variable at the key file
+before `npm run release`.
+
+To publish a release:
+
+1. Set the new version in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`
+   and `engine/Cargo.toml`, and commit.
+2. Push a tag with that version, for example `git tag v1.0.1` then `git push origin v1.0.1`.
+3. `.github/workflows/release.yml` builds and signs the installer and attaches it, its signature
+   and `latest.json` to a draft release.
+4. Write the release notes on the draft (the update card shows their first lines) and publish
+   it. Installed copies find it on their next check.
+
+A fork that wants its own updates needs its own key (`npm run tauri signer generate`), its
+public key and release URL in `src-tauri/tauri.conf.json`.
 
 The headless engine is also available as a command-line tool for testing:
 

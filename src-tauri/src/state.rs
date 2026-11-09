@@ -17,6 +17,8 @@ pub struct AppState {
     pub status: Mutex<Snapshot>,
     /// Device id of the output being auto-synced, if any.
     pub calibrating: Mutex<Option<String>>,
+    /// Version of an update the main window found, so the tray popup can mention it.
+    pub update_notice: Mutex<Option<String>>,
 }
 
 impl AppState {
@@ -29,6 +31,7 @@ impl AppState {
             devices: Mutex::new(Devices::default()),
             status: Mutex::new(Snapshot::default()),
             calibrating: Mutex::new(None),
+            update_notice: Mutex::new(None),
         }
     }
 
@@ -181,6 +184,8 @@ pub struct Snapshot {
     pub outputs: Vec<OutputStatusDto>,
     pub clicks: bool,
     pub calibrating: Option<String>,
+    /// Version of an available update, if one was found.
+    pub update: Option<String>,
 }
 
 impl Snapshot {

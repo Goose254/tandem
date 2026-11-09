@@ -44,3 +44,30 @@
   margin: 4px 0 0 -12px;
   font-size: 12.5px;
 }
+
+/* One line under the version row: the last update check's outcome. */
+.updateLine,
+.updateFailed {
+  margin: -4px 0 0;
+  max-width: 68ch;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+
+.updateFailed {
+  color: var(--danger);
+  overflow-wrap: anywhere;
+}
+
+.updateShow {
+  padding: 0;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.updateShow:hover {
+  text-decoration: underline;
+}

@@ -479,6 +479,7 @@ impl Supervisor {
             outputs,
             clicks,
             calibrating,
+            update: state.update_notice.lock().unwrap().clone(),
         };
         let tray = (snapshot.is_active(), crate::tray::tooltip(&snapshot, &settings));
         if self.last_tray.as_ref() != Some(&tray) {

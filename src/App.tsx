@@ -7,15 +7,22 @@ import { SettingsView } from "./components/settings/SettingsView";
 import { SyncSpinner } from "./components/common/Layout";
 import { startSync, useStore } from "./state/store";
 import { useApplyTheme } from "./lib/theme";
+import { UpdatePrompt } from "./components/updater/UpdatePrompt";
+import { useAutoUpdateCheck, useUpdater } from "./state/updater";
+import { on } from "./lib/ipc";
 import styles from "./App.module.css";
 
 export default function App() {
   const ready = useStore((s) => s.ready);
   const view = useStore((s) => s.view);
   useApplyTheme();
+  useAutoUpdateCheck();
 
   useEffect(() => {
     void startSync();
+    // The tray popup's "Update…" asks the main window to show its prompt.
+    const stop = on("show-update", () => useUpdater.getState().openPrompt());
+    return () => void stop.then((off) => off());
   }, []);
 
   return (
@@ -37,6 +44,7 @@ export default function App() {
           )}
         </main>
       </div>
+      <UpdatePrompt />
     </div>
   );
 }

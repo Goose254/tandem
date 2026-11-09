@@ -1,7 +1,12 @@
 name: Release
 
-# Pushing a tag like v1.0.0 builds the installer and attaches it to a draft GitHub release.
-# Review the draft, then publish it by hand.
+# Pushing a tag like v1.0.1 builds the signed installer and attaches it, with the update feed
+# (latest.json), to a draft GitHub release. Review the draft, then publish it by hand:
+# installed copies of Tandem only see a release once it is published.
+#
+# Needs two repository secrets (Settings > Secrets and variables > Actions):
+#   TAURI_SIGNING_PRIVATE_KEY           the update signing key (see README, "Releases")
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD  its password; leave unset for a key without one
 on:
   push:
     tags: ["v*"]
@@ -16,6 +21,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check that the tag matches the app version
+        shell: bash
+        run: |
+          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match the app version $version" >&2
+            exit 1
+          fi
+
+      - name: Check that the update signing key is set
+        shell: bash
+        env:
+          KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$KEY" ]; then
+            echo "The TAURI_SIGNING_PRIVATE_KEY secret is missing: updates could not be signed." >&2
+            exit 1
+          fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -27,22 +51,20 @@ jobs:
 
       - run: npm ci
 
-      - name: Check that the tag matches the app version
-        shell: bash
-        run: |
-          version=$(node -p "require('./src-tauri/tauri.conf.json').version")
-          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "Tag $GITHUB_REF_NAME does not match the app version $version" >&2
-            exit 1
-          fi
-
       - run: cargo test --release -p tandem-engine
 
-      - run: npm run release
-
-      - uses: softprops/action-gh-release@v2
+      # Builds, signs, creates the draft release and uploads the installer, its signature and
+      # latest.json (the feed the in-app updater reads).
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
-          draft: true
-          generate_release_notes: true
-          fail_on_unmatched_files: true
-          files: target/release/bundle/nsis/*-setup.exe
+          tagName: ${{ github.ref_name }}
+          releaseName: Tandem ${{ github.ref_name }}
+          releaseBody: See the commits since the previous release for what changed.
+          releaseDraft: true
+          prerelease: false
+          includeUpdaterJson: true
+          updaterJsonPreferNsis: true

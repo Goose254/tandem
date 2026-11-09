@@ -20,6 +20,9 @@ pub fn run() {
         }))
         // Opens the source-code link in the browser; the capability scopes it to the repository.
         .plugin(tauri_plugin_opener::init())
+        // In-app updates: the UI asks the signed release feed, downloads, installs, restarts.
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![MINIMIZED_FLAG]),
@@ -70,12 +73,14 @@ pub fn run() {
             commands::set_output_delay,
             commands::set_output_gain,
             commands::set_clicks,
+            commands::set_update_notice,
             commands::set_preferences,
             commands::get_autostart,
             commands::set_autostart,
             commands::start_calibration,
             commands::open_sound_settings,
             commands::show_main_window,
+            commands::show_update_prompt,
             commands::hide_tray_popup,
             commands::quit_app,
         ])

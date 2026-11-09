@@ -25,6 +25,8 @@
           "url": "https://github.com/Goose254/tandem*"
         }
       ]
-    }
+    },
+    "updater:default",
+    "process:allow-restart"
   ]
 }

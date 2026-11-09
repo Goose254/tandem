@@ -118,6 +118,13 @@ pub fn set_clicks(state: State<AppState>, on: bool) {
     }
 }
 
+/// The main window found (or no longer has) an update: every window's status carries it,
+/// so the tray popup can point at it while the main window is hidden.
+#[tauri::command]
+pub fn set_update_notice(state: State<AppState>, version: Option<String>) {
+    *state.update_notice.lock().unwrap() = version;
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreferencesPatch {
@@ -128,6 +135,10 @@ pub struct PreferencesPatch {
     resync_on_reconnect: Option<bool>,
     follow_source_volume: Option<bool>,
     pause_when_silent: Option<bool>,
+    auto_check_updates: Option<bool>,
+    /// `Some(None)` forgets the skipped version.
+    #[serde(default, deserialize_with = "double_option")]
+    skipped_update: Option<Option<String>>,
     /// `Some(None)` goes back to syncing against the source.
     #[serde(default, deserialize_with = "double_option")]
     sync_reference: Option<Option<String>>,
@@ -173,6 +184,12 @@ pub fn set_preferences(app: AppHandle, state: State<AppState>, patch: Preference
         if let Some(v) = patch.pause_when_silent {
             s.pause_when_silent = v;
         }
+        if let Some(v) = patch.auto_check_updates {
+            s.auto_check_updates = v;
+        }
+        if let Some(v) = patch.skipped_update {
+            s.skipped_update = v;
+        }
         if let Some(v) = patch.sync_reference {
             s.sync_reference = v;
         }
@@ -215,6 +232,13 @@ pub fn open_sound_settings() -> Result<(), String> {
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) {
     crate::tray::show_main_window(&app);
+}
+
+/// From the tray popup: bring up the main window with its update prompt.
+#[tauri::command]
+pub fn show_update_prompt(app: AppHandle) {
+    crate::tray::show_main_window(&app);
+    let _ = app.emit("show-update", ());
 }
 
 #[tauri::command]

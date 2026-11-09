@@ -35,6 +35,8 @@ const settings: Settings = {
   syncReference: null,
   followSourceVolume: true,
   pauseWhenSilent: false,
+  autoCheckUpdates: true,
+  skippedUpdate: null,
   theme: "system",
   locale: (new URLSearchParams(location.search).get("lang") as "en" | "fr") ?? "en",
   closeToTray: true,
@@ -44,6 +46,7 @@ if (settings.locale !== "fr") settings.locale = "en";
 
 let clicks = false;
 let calibrating: string | null = null;
+let updateNotice: string | null = null;
 let autostart = true;
 
 function emit(event: string, payload: unknown) {
@@ -84,6 +87,7 @@ function snapshot(): Snapshot {
     }),
     clicks,
     calibrating,
+    update: updateNotice,
   };
 }
 
@@ -139,6 +143,9 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> =
         output(a.deviceId)!.gainDb = Math.max(-40, Math.min(12, a.gainDb));
         break;
       case "open_sound_settings":
+        return undefined;
+      case "set_update_notice":
+        updateNotice = a.version ?? null;
         return undefined;
       case "set_clicks":
         clicks = a.on;

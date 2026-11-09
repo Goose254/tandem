@@ -71,6 +71,13 @@ export function TrayPopup() {
         })}
       </ul>
 
+      {status?.update ? (
+        <div className={styles.update}>
+          <span className="tabular">{t((d) => d.updater.trayLine, { version: status.update })}</span>
+          <QuietButton onClick={() => void ipc.showUpdatePrompt()}>{t((d) => d.updater.trayAction)}</QuietButton>
+        </div>
+      ) : null}
+
       <div className={styles.actions}>
         <PrimaryButton onClick={() => void ipc.showMainWindow()}>{t((d) => d.tray.open)}</PrimaryButton>
         <QuietButton onClick={() => void ipc.quit()}>{t((d) => d.tray.quit)}</QuietButton>
