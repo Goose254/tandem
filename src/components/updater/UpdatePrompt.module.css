@@ -7,7 +7,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: min(360px, calc(100vw - 40px));
+  /* Wide enough for the three actions in the longest language (French); they wrap if not. */
+  width: min(420px, calc(100vw - 40px));
   padding: 16px 18px 14px;
   border: 1px solid var(--veil-2);
   border-radius: var(--r-md);
@@ -16,9 +17,9 @@
   animation: rise var(--dur-fast, 0.14s) ease-out;
 }
 
+/* Movement only: the card is never see-through, even if the animation is held up. */
 @keyframes rise {
   from {
-    opacity: 0;
     transform: translateY(8px);
   }
 }
@@ -58,6 +59,7 @@
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: 4px;

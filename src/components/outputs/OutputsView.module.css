@@ -2,7 +2,7 @@
   display: flex;
   flex-direction: column;
   gap: 28px;
-  max-width: 820px;
+  /* No width cap: the boxes grow with the window. Text inside keeps its own measure. */
 }
 
 .masterLabel {

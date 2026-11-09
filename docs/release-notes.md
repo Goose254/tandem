@@ -1,5 +1,3 @@
-- Tandem now updates itself: it offers new versions as they are published, and installs them when you say so
-- New icon: three notes wrapped round a centre point
-- Volume keys act on every output, also with Bluetooth sources
-- Auto-sync can line an output up with another output when the source can't be heard
-- Fewer dropouts under load, smoother meters, undo when removing an output
+- The boxes on the Outputs and Sync screens now grow with the window
+- The update card's buttons no longer spill out of it, notably in French
+- The update card can no longer appear see-through

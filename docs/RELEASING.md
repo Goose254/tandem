@@ -70,7 +70,8 @@ Rules:
 2. **Choose the version.** Patch (`1.0.1` to `1.0.2`) for fixes, minor (`1.1.0`) for features.
    The updater compares versions, so the new one must be higher than every published release.
 
-3. **Set it in four files**, all to the same value:
+3. **Set it in four files**, all to the same value. `node scripts/set-version.mjs X.Y.Z` does
+   it in one go:
 
    | File | Field |
    |---|---|
@@ -214,3 +215,4 @@ deletes that release on GitHub first; otherwise use a higher version instead.
 | 1.0.0 | First build. Tagged; its release stayed a draft and was never published. No updater. |
 | 1.0.1 | Twenty audit fixes, the three-note icon, in-app updates. Tagged, but its run failed at the last step and created no release: with `releaseDraft: true`, GitHub refused the create-release call ("Resource not accessible by integration"). |
 | 1.0.2 | Same code as 1.0.1 plus the documentation. First published release, and the first built by the workflow that publishes on its own. |
+| 1.0.3 | The boxes grow with the window; the update card's buttons fit and the card is never see-through. First release that installed copies (1.0.2) can update to. |
