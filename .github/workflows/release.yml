@@ -1,8 +1,9 @@
 name: Release
 
-# Pushing a tag like v1.0.1 builds the signed installer and attaches it, with the update feed
-# (latest.json), to a draft GitHub release. Review the draft, then publish it by hand:
-# installed copies of Tandem only see a release once it is published.
+# Pushing a tag like v1.0.2 builds the signed installer and publishes a GitHub release with it
+# and the update feed (latest.json). The release is public as soon as the run succeeds, and
+# installed copies of Tandem offer it on their next check: the tag is the release decision.
+# The notes come from docs/release-notes.md. Full procedure: docs/RELEASING.md.
 #
 # Needs two repository secrets (Settings > Secrets and variables > Actions):
 #   TAURI_SIGNING_PRIVATE_KEY           the update signing key (see README, "Releases")
@@ -40,6 +41,19 @@ jobs:
             exit 1
           fi
 
+      # The notes for this version: shown on the release page and, through latest.json, in
+      # the app's update card.
+      - name: Read the release notes
+        id: notes
+        shell: bash
+        run: |
+          {
+            echo 'body<<TANDEM_NOTES_END'
+            cat docs/release-notes.md
+            echo
+            echo 'TANDEM_NOTES_END'
+          } >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -53,7 +67,7 @@ jobs:
 
       - run: cargo test --release -p tandem-engine
 
-      # Builds, signs, creates the draft release and uploads the installer, its signature and
+      # Builds, signs, creates the release and uploads the installer, its signature and
       # latest.json (the feed the in-app updater reads).
       - uses: tauri-apps/tauri-action@v0
         env:
@@ -63,8 +77,8 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Tandem ${{ github.ref_name }}
-          releaseBody: See the commits since the previous release for what changed.
-          releaseDraft: true
+          releaseBody: ${{ steps.notes.outputs.body }}
+          releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
           updaterJsonPreferNsis: true

@@ -87,8 +87,8 @@ window (and a line in the tray popup) offers "Update now", "Later" or "Skip this
 Updating downloads the signed installer, runs it and restarts Tandem; the sound stops for a few
 seconds and your settings are kept. Nothing is installed without your go-ahead, the automatic
 check can be turned off in Settings > Updates, and "Check for updates" is always there. Each
-download is verified against a signature before it runs. Version 1.0.0 has no updater: install
-1.0.1 or later by hand once.
+download is verified against a signature before it runs. Builds older than 1.0.1 have no updater:
+install the latest release by hand once.
 
 **Recommended setup:** make the slowest device (the Bluetooth amp) the Windows default output,
 leave the source on "Windows default output", and add the other devices as outputs.
@@ -169,12 +169,13 @@ before `npm run release`.
 To publish a release:
 
 1. Set the new version in `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`
-   and `engine/Cargo.toml`, and commit.
+   and `engine/Cargo.toml`, write its notes in `docs/release-notes.md`, and commit.
 2. Push a tag with that version, for example `git tag v1.0.1` then `git push origin v1.0.1`.
-3. `.github/workflows/release.yml` builds and signs the installer and attaches it, its signature
-   and `latest.json` to a draft release.
-4. Write the release notes on the draft (the update card shows their first lines) and publish
-   it. Installed copies find it on their next check.
+3. `.github/workflows/release.yml` builds and signs the installer and publishes a release with
+   it, its signature and `latest.json`. Installed copies find it on their next check.
+
+The full procedure, with checks and troubleshooting, is in
+[docs/RELEASING.md](docs/RELEASING.md).
 
 A fork that wants its own updates needs its own key (`npm run tauri signer generate`), its
 public key and release URL in `src-tauri/tauri.conf.json`.
