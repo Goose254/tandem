@@ -13,13 +13,16 @@ checklist.
   - `Tandem_X.Y.Z_x64-setup.exe.sig`: its update signature.
   - `latest.json`: the update feed. It names the version, the installer URL, the signature and
     the release notes.
+- **The workflow's steps:** checks (tag matches the version, signing key present), engine
+  tests, then `tauri-apps/tauri-action`, which builds, signs, creates the release from
+  `docs/release-notes.md` and uploads the three files.
 - **Pushing the tag is what ships it.** Nobody clicks "Publish": when the run succeeds the
   release is public. Installed copies of Tandem read
   `https://github.com/Goose254/tandem/releases/latest/download/latest.json`, which GitHub
   serves for the latest published release, so they offer the new version on their next check.
   Treat the tag as the point of no return and do the checks before it.
-- **The first public release is 1.0.2.** Versions 1.0.0 and 1.0.1 were built by an earlier
-  workflow that stopped at a draft; neither was published.
+- **The first public release is 1.0.2.** 1.0.0 stayed an unpublished draft and 1.0.1's run
+  failed (see History), so neither was ever public.
 - **Installed copies update themselves.** The app checks the feed about 5 seconds after launch
   and every 6 hours, or on demand (Settings > Updates). It offers the update only when the
   feed's version is higher than its own, verifies the signature against the public key compiled
@@ -188,6 +191,7 @@ mv target/release/tandem.exe target/release/tandem.in-use.exe
 | The app says "You have the latest version" after a release | The run has not finished, the release is a draft or a pre-release, or its version is not higher | Check the run and the version in `latest.json` |
 | "Couldn't check for updates" in the app | The latest published release has no `latest.json`, or no network | Make sure the latest release was built by this workflow |
 | A bad release is already public | Tags publish directly | Fix it and release a higher version; installed copies only move forward. Deleting the release on GitHub (owner only) stops new installs meanwhile |
+| Release run fails in `tauri-action` with "Resource not accessible by integration" | Seen once, when the workflow asked for a draft release | Keep `releaseDraft: false`; check the workflow still has `permissions: contents: write` |
 | Windows SmartScreen warns on the installer | The installer is not code-signed (update signing is a different thing) | Expected; "More info" then "Run anyway". Code signing needs a paid certificate |
 
 To redo a tag whose run failed before it published anything:
@@ -208,5 +212,5 @@ deletes that release on GitHub first; otherwise use a higher version instead.
 | Version | What |
 |---|---|
 | 1.0.0 | First build. Tagged; its release stayed a draft and was never published. No updater. |
-| 1.0.1 | Twenty audit fixes, the three-note icon, in-app updates. Tagged; stayed a draft too. |
+| 1.0.1 | Twenty audit fixes, the three-note icon, in-app updates. Tagged, but its run failed at the last step and created no release: with `releaseDraft: true`, GitHub refused the create-release call ("Resource not accessible by integration"). |
 | 1.0.2 | Same code as 1.0.1 plus the documentation. First published release, and the first built by the workflow that publishes on its own. |
