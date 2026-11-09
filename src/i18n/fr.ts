@@ -101,6 +101,7 @@ export const fr: Dict = {
     about: "À propos",
     version: "Version {version}",
     aboutLine: "Capture WASAPI loopback, rééchantillonnage sinc avec contrôle de dérive d'horloge. Langage visuel de Plisto par Altervayne.",
+    source: "Code source sur GitHub",
     license: "Logiciel libre sous licence GNU AGPL-3.0 ou ultérieure. La licence, les mentions et les licences tierces sont installées à côté de l'application.",
   },
   tray: {

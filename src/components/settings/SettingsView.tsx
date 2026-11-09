@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
+import { ExternalLink } from "lucide-react";
+import { QuietButton } from "../common/Buttons";
+import { openExternal, REPO_URL } from "../../lib/links";
 import { Logo, Row, Section, ViewHeader } from "../common/Layout";
 import { SegmentedControl, Switch } from "../common/Controls";
 import { inShell, ipc } from "../../lib/ipc";
@@ -89,6 +92,10 @@ export function SettingsView() {
               </p>
               <p className={styles.aboutLine}>{t((d) => d.settings.aboutLine)}</p>
               <p className={styles.aboutLine}>{t((d) => d.settings.license)}</p>
+              <QuietButton className={styles.sourceLink} onClick={() => openExternal(REPO_URL)}>
+                <ExternalLink size={14} />
+                {t((d) => d.settings.source)}
+              </QuietButton>
             </div>
           </div>
         </Section>

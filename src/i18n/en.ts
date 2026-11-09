@@ -102,6 +102,7 @@ export const en = {
     about: "About",
     version: "Version {version}",
     aboutLine: "WASAPI loopback capture, sinc resampling with clock-drift control. Design language from Plisto by Altervayne.",
+    source: "Source code on GitHub",
     license: "Free software under the GNU AGPL-3.0 or later. The license, notices and third-party licenses are installed next to the app.",
   },
   tray: {

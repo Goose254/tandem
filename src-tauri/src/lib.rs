@@ -18,6 +18,8 @@ pub fn run() {
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
             tray::show_main_window(app);
         }))
+        // Opens the source-code link in the browser; the capability scopes it to the repository.
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![MINIMIZED_FLAG]),

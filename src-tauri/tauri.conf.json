@@ -75,6 +75,7 @@
       "../LICENSE": "LICENSE.txt",
       "../NOTICE": "NOTICE.txt",
       "../THIRD_PARTY_LICENSES.md": "THIRD_PARTY_LICENSES.md"
-    }
+    },
+    "homepage": "https://github.com/Goose254/tandem"
   }
 }

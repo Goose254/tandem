@@ -7,6 +7,8 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
 ![Platform: Windows](https://img.shields.io/badge/platform-Windows_x64-informational)
+
+[Source code](https://github.com/Goose254/tandem) · [Report an issue](https://github.com/Goose254/tandem/issues)
 </div>
 
 Tandem takes what Windows plays on one device (the **source**, typically the slowest one,
@@ -71,6 +73,8 @@ leave the source on "Windows default output", and add the other devices as outpu
 Requirements: Rust (MSVC toolchain), Node 20+, and WebView2 (built into Windows 11).
 
 ```bash
+git clone https://github.com/Goose254/tandem.git
+cd tandem
 npm install
 npm run tauri dev      # run the app with hot reload
 npm run dev            # UI only, in a browser, with a simulated backend
@@ -98,7 +102,8 @@ cargo run --release -p tandem-engine --bin tandem-cli -- run --target "Main Outp
 
 Tandem is free software: you can redistribute it and/or modify it under the terms of the
 **GNU Affero General Public License, version 3 or (at your option) any later version**. See
-[LICENSE](LICENSE) for the full text and [NOTICE](NOTICE) for attributions.
+[LICENSE](LICENSE) for the full text and [NOTICE](NOTICE) for attributions. The complete source code is at
+<https://github.com/Goose254/tandem>.
 
 The design language (tokens, layout, controls) is adapted from
 [Plisto](https://github.com/Altervayne/plisto) by Florian Douay, also AGPL-3.0-or-later. Tandem

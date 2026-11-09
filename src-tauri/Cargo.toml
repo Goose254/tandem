@@ -4,6 +4,8 @@ version = "1.0.0"
 description = "Play your PC's audio on several outputs at once, in sync"
 edition = "2024"
 license = "AGPL-3.0-or-later"
+repository = "https://github.com/Goose254/tandem"
+homepage = "https://github.com/Goose254/tandem"
 authors = ["V. Douay"]
 
 [lib]
@@ -21,6 +23,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 wasapi = "0.27.0"
 tandem-engine = { path = "../engine" }
+tauri-plugin-opener = "2"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Globalization"] }
