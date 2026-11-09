@@ -1,0 +1,35 @@
+Tandem
+Copyright (C) 2026 V. Douay
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU Affero General Public License as published by the Free
+Software Foundation, either version 3 of the License, or (at your option) any
+later version. See the LICENSE file for the full text.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.
+
+
+================================================================================
+DESIGN LANGUAGE - DERIVED FROM PLISTO
+================================================================================
+
+Tandem's user interface follows the visual design language of Plisto
+(https://github.com/Altervayne/plisto), Copyright (C) 2026 Florian Douay,
+licensed under the GNU Affero General Public License v3.0 or later. The design
+tokens in src/styles/tokens.css and the styling of the shell, settings layout
+and common controls are adapted from it.
+
+Tandem does not use the Plisto name or the Plisto logo, which are reserved by
+their author and are not covered by the AGPL. Tandem's own mark (three
+staggered bars ending on one sync line) is original to Tandem.
+
+
+================================================================================
+THIRD-PARTY COMPONENTS
+================================================================================
+
+Tandem is built with third-party open-source components (Rust crates and
+JavaScript packages) licensed under their own terms. See
+THIRD_PARTY_LICENSES.md for the inventory and the applicable licenses.

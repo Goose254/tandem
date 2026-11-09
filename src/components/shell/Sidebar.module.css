@@ -1,0 +1,114 @@
+/* Transparent sidebar flowing into the main region: no border, parted only by space. */
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  min-height: 0;
+  padding: 22px 14px 18px 20px;
+}
+
+.navgroup,
+.footgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.navlabel {
+  margin-bottom: 7px;
+  padding: 0 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+
+.item svg {
+  flex: none;
+  opacity: 0.8;
+}
+
+.txt {
+  flex: 1;
+  font-weight: 500;
+}
+
+.count {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.item:hover {
+  background: var(--veil);
+  color: var(--ink);
+}
+
+/* The one accent: the active row's text, icon and a 3px bar pinned to the window edge. */
+.active,
+.active .count {
+  color: var(--accent);
+}
+
+.active svg {
+  opacity: 1;
+}
+
+.active::before {
+  content: "";
+  position: absolute;
+  left: -20px;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+
+/* The master switch, pinned at the foot with the live source level under its label. */
+.master {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 10px 8px 10px 10px;
+  border-radius: var(--r-md);
+  background: var(--veil);
+}
+
+.masterText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.masterLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}

@@ -1,0 +1,125 @@
+/*
+ * Design tokens. The design language follows Plisto (Altervayne): light-first on :root,
+ * redefined for dark under prefers-color-scheme (unless a manual light stamp wins) and under an
+ * explicit [data-theme="dark"] stamp. Cyan is the only chromatic UI color; regions separate by
+ * space, never borders. Every color painted comes from here.
+ */
+
+:root {
+  --bg: #f4f4f8;
+  --surface: #ffffff;
+  --surface-2: #fafafc;
+  --sunken: #eaeaf0;
+  --ink: #17171c;
+  --ink-2: #63636f;
+  --ink-3: #9a9aa6;
+  --hairline: #e4e4ec;
+  /* Slider and switch knob: white on light, a soft light grey on dark so it never vanishes. */
+  --knob: #ffffff;
+
+  --accent: #1e9cc0;
+  --accent-ink: #ffffff;
+  --accent-weak: rgba(30, 156, 192, 0.12);
+  --accent-solid: #1e9cc0;
+  --on-solid: #ffffff;
+
+  --warn: #b4780f;
+  --danger: #cf3b30;
+  --danger-weak: rgba(207, 59, 48, 0.12);
+  --good: #2f855a;
+
+  --veil: rgba(28, 26, 64, 0.045);
+  --veil-2: rgba(28, 26, 64, 0.085);
+  --edge: rgba(40, 40, 70, 0.05);
+  --scroll-thumb: rgba(28, 26, 64, 0.2);
+  --shadow-soft: 0 6px 20px -14px rgba(20, 20, 45, 0.3);
+  --shadow-pop: 0 18px 40px -20px rgba(20, 20, 45, 0.35);
+
+  --ambient:
+    radial-gradient(80% 60% at 6% -6%, rgba(30, 156, 192, 0.12), transparent 55%),
+    radial-gradient(70% 55% at 104% 2%, rgba(74, 142, 190, 0.09), transparent 52%),
+    radial-gradient(74% 66% at 96% 106%, rgba(56, 150, 170, 0.08), transparent 56%),
+    var(--bg);
+
+  --font-ui: "Segoe UI Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Code", ui-monospace, "SF Mono", Consolas, monospace;
+
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 9px;
+  --pill: 999px;
+
+  --ease-cover: cubic-bezier(0.2, 0.7, 0.3, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 0.12s;
+  --dur-soft: 0.2s;
+  --dur-slow: 0.28s;
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c0c10;
+    --surface: #17171d;
+    --surface-2: #1c1c24;
+    --sunken: #101015;
+    --ink: #f1f1f6;
+    --ink-2: #9c9caa;
+    --ink-3: #6b6b78;
+    --hairline: #2a2a34;
+  --knob: #d6d6df;
+    --knob: #d6d6df;
+    --accent: #4fb8d4;
+    --accent-ink: #08222b;
+    --accent-weak: rgba(79, 184, 212, 0.16);
+    --warn: #e0a83a;
+    --danger: #f2685f;
+    --danger-weak: rgba(242, 104, 95, 0.16);
+    --good: #5fbb8b;
+    --veil: rgba(255, 255, 255, 0.05);
+    --veil-2: rgba(255, 255, 255, 0.09);
+    --edge: rgba(255, 255, 255, 0.032);
+    --scroll-thumb: rgba(255, 255, 255, 0.16);
+    --shadow-soft: 0 8px 22px -14px rgba(0, 0, 0, 0.6);
+    --shadow-pop: 0 22px 46px -22px rgba(0, 0, 0, 0.75);
+    --ambient:
+      radial-gradient(80% 60% at 6% -6%, rgba(79, 184, 212, 0.15), transparent 55%),
+      radial-gradient(70% 55% at 104% 2%, rgba(74, 142, 190, 0.12), transparent 52%),
+      radial-gradient(74% 66% at 96% 106%, rgba(56, 150, 170, 0.11), transparent 56%),
+      var(--bg);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0c0c10;
+  --surface: #17171d;
+  --surface-2: #1c1c24;
+  --sunken: #101015;
+  --ink: #f1f1f6;
+  --ink-2: #9c9caa;
+  --ink-3: #6b6b78;
+  --hairline: #2a2a34;
+  --knob: #d6d6df;
+  --accent: #4fb8d4;
+  --accent-ink: #08222b;
+  --accent-weak: rgba(79, 184, 212, 0.16);
+  --warn: #e0a83a;
+  --danger: #f2685f;
+  --danger-weak: rgba(242, 104, 95, 0.16);
+  --good: #5fbb8b;
+  --veil: rgba(255, 255, 255, 0.05);
+  --veil-2: rgba(255, 255, 255, 0.09);
+  --edge: rgba(255, 255, 255, 0.032);
+  --scroll-thumb: rgba(255, 255, 255, 0.16);
+  --shadow-soft: 0 8px 22px -14px rgba(0, 0, 0, 0.6);
+  --shadow-pop: 0 22px 46px -22px rgba(0, 0, 0, 0.75);
+  --ambient:
+    radial-gradient(80% 60% at 6% -6%, rgba(79, 184, 212, 0.15), transparent 55%),
+    radial-gradient(70% 55% at 104% 2%, rgba(74, 142, 190, 0.12), transparent 52%),
+    radial-gradient(74% 66% at 96% 106%, rgba(56, 150, 170, 0.11), transparent 56%),
+    var(--bg);
+  color-scheme: dark;
+}

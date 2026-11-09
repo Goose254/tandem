@@ -1,0 +1,190 @@
+.logo {
+  display: block;
+  flex: none;
+}
+
+/* -- View head: title over a dimmed line, a trailing control on the right. -- */
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  max-width: 640px;
+}
+
+.title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 660;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+
+.sub {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.headTrailing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  padding-top: 2px;
+}
+
+/* -- Sections and preference rows (the settings rhythm). -- */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 24px;
+}
+
+.label {
+  margin: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.pref {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  row-gap: 8px;
+  column-gap: 24px;
+  min-height: 32px;
+}
+
+.rowLabel {
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--ink);
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.helper {
+  max-width: 68ch;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+/* -- Card: a soft recess on the continuous ground. No border, no shadow: Tandem has no
+ * "object" like album art, so nothing lifts off the surface; a near-threshold veil just
+ * gathers one device's controls. -- */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: var(--r-lg);
+  background: var(--veil);
+  transition: opacity var(--dur-soft) ease;
+}
+
+.cardDim {
+  opacity: 0.62;
+}
+
+/* -- Empty state -- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 420px;
+  margin: 48px auto;
+  text-align: center;
+}
+
+.emptyTitle {
+  margin: 8px 0 0;
+  font-size: 21px;
+  font-weight: 660;
+  letter-spacing: -0.025em;
+}
+
+.emptyLine {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.emptyAction {
+  margin-top: 6px;
+}
+
+/* -- Spinner: three bars sliding back and forth until they line up on the right. -- */
+.spinner {
+  position: relative;
+  display: inline-block;
+  flex: none;
+}
+
+.spinner i {
+  position: absolute;
+  right: 0;
+  height: 18%;
+  border-radius: var(--pill);
+  animation: align 1.4s var(--ease-standard) infinite;
+}
+
+.spinner i:nth-child(1) {
+  top: 14%;
+  background: #1e9cc0;
+}
+
+.spinner i:nth-child(2) {
+  top: 41%;
+  background: #54b24c;
+  animation-delay: 0.15s;
+}
+
+.spinner i:nth-child(3) {
+  top: 68%;
+  background: #7a56d0;
+  animation-delay: 0.3s;
+}
+
+@keyframes align {
+  0%,
+  100% {
+    width: 40%;
+  }
+  50% {
+    width: 92%;
+  }
+}

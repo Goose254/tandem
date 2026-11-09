@@ -1,0 +1,65 @@
+.bar {
+  --close-hover: #e5484d;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  height: 48px;
+  padding-left: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.name {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+/* The live summary, in the reference's workspace style: a status dot and quiet text. */
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.controls {
+  margin-left: auto;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+}
+
+.control {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+
+.control:hover {
+  background: var(--veil);
+  color: var(--ink);
+}
+
+.close:hover {
+  background: var(--close-hover);
+  color: #fff;
+}

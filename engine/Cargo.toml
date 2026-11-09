@@ -1,0 +1,23 @@
+[package]
+name = "tandem-engine"
+version = "0.1.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+authors = ["V. Douay"]
+description = "Mirror Windows system audio to several outputs, delayed and drift-corrected"
+
+[lib]
+name = "tandem_engine"
+
+[[bin]]
+name = "tandem-cli"
+path = "src/bin/tandem-cli.rs"
+
+[dependencies]
+anyhow = "1.0.104"
+audioadapter-buffers = "5.1"
+clap = { version = "4.6.7", features = ["derive"] }
+crossterm = "0.29.0"
+rubato = "5.0.1"
+rustfft = "6"
+wasapi = "0.27.0"

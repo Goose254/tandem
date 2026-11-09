@@ -1,0 +1,121 @@
+/* The single solid-accent action: deep, theme-invariant fill, crisp radius, never a pill. */
+.primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--accent-solid);
+  color: var(--on-solid);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow:
+    0 10px 24px -13px color-mix(in srgb, var(--accent-solid) 82%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  transition:
+    filter var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-standard);
+}
+
+.primary:not(:disabled):hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+
+.primary:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+.primary:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Transparent at rest, a soft veil on hover. */
+.quiet {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-weight: 550;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-standard);
+}
+
+.quiet:hover {
+  background: var(--veil);
+  color: var(--ink);
+}
+
+.quiet:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+.quiet:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.quiet:disabled:hover {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.destructive,
+.destructive:hover {
+  color: var(--danger);
+}
+
+.destructive:hover {
+  background: var(--danger-weak);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) ease,
+    color var(--dur-fast) ease,
+    transform var(--dur-fast) var(--ease-standard);
+}
+
+.small {
+  padding: 5px;
+}
+
+.icon:hover {
+  background: var(--veil);
+  color: var(--ink);
+}
+
+.icon:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.icon:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.icon:disabled:hover {
+  background: transparent;
+  color: var(--ink-2);
+}

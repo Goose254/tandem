@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#262630"/><stop offset="1" stop-color="#111116"/></linearGradient>
+    <radialGradient id="glow" cx="0.12" cy="0.05" r="0.9"><stop offset="0" stop-color="#1e9cc0" stop-opacity="0.28"/><stop offset="0.6" stop-color="#1e9cc0" stop-opacity="0"/></radialGradient>
+    <linearGradient id="c" x1="0" x2="1"><stop offset="0" stop-color="#1e9cc0"/><stop offset="1" stop-color="#6bbed5"/></linearGradient>
+    <linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#54b24c"/><stop offset="1" stop-color="#8ecc89"/></linearGradient>
+    <linearGradient id="p" x1="0" x2="1"><stop offset="0" stop-color="#7a56d0"/><stop offset="1" stop-color="#a78fe0"/></linearGradient>
+    <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6c66b"/><stop offset="1" stop-color="#f2a81e"/></linearGradient>
+  </defs>
+  <rect x="32" y="32" width="960" height="960" rx="216" fill="url(#tile)"/>
+  <rect x="32" y="32" width="960" height="960" rx="216" fill="url(#glow)"/>
+  <g transform="translate(192 192) scale(2.5)">
+    <rect x="25.6" y="39.7" width="163.8" height="48.6" rx="24.3" fill="url(#c)"/>
+    <rect x="92.2" y="103.7" width="97.2" height="48.6" rx="24.3" fill="url(#g)"/>
+    <rect x="56.3" y="167.7" width="133.1" height="48.6" rx="24.3" fill="url(#p)"/>
+    <rect x="206.1" y="20.5" width="28.2" height="215" rx="14.1" fill="url(#a)"/>
+  </g>
+</svg>

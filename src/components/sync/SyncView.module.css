@@ -1,0 +1,96 @@
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 980px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cardTitle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.cardTitle svg {
+  color: var(--accent);
+}
+
+.line {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.dial {
+  padding: 10px 4px 2px;
+}
+
+.tip {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+/* Pull the quiet select out by its own padding so its text sits on the card edge. */
+.pull {
+  margin-inline-end: -10px;
+}
+
+.run {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  min-height: 42px;
+}
+
+.progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  font-weight: 550;
+  color: var(--ink);
+}
+
+.hint {
+  flex: 1;
+  min-width: 180px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.success,
+.failure {
+  flex: 1;
+  min-width: 180px;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.success {
+  color: var(--good);
+}
+
+.failure {
+  color: var(--warn);
+}
