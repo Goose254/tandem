@@ -1,12 +1,18 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
   <defs>
-    <linearGradient id="c" x1="0" x2="1"><stop offset="0" stop-color="#1e9cc0"/><stop offset="1" stop-color="#6bbed5"/></linearGradient>
-    <linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#54b24c"/><stop offset="1" stop-color="#8ecc89"/></linearGradient>
-    <linearGradient id="p" x1="0" x2="1"><stop offset="0" stop-color="#7a56d0"/><stop offset="1" stop-color="#a78fe0"/></linearGradient>
+    <linearGradient id="c" gradientUnits="userSpaceOnUse" x1="64" y1="128" x2="238" y2="60"><stop offset="0" stop-color="#1e9cc0"/><stop offset="1" stop-color="#6bbed5"/></linearGradient>
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="64" y1="128" x2="238" y2="60"><stop offset="0" stop-color="#54b24c"/><stop offset="1" stop-color="#8ecc89"/></linearGradient>
+    <linearGradient id="p" gradientUnits="userSpaceOnUse" x1="64" y1="128" x2="238" y2="60"><stop offset="0" stop-color="#7a56d0"/><stop offset="1" stop-color="#a78fe0"/></linearGradient>
     <linearGradient id="a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6c66b"/><stop offset="1" stop-color="#f2a81e"/></linearGradient>
+    <!-- One note: head, straight stem, and a flag that sweeps a third of the ring. -->
+    <g id="note">
+      <path d="M110 28 A102 102 0 0 1 229 114" fill="none" stroke-width="18" stroke-linecap="round"/>
+      <path d="M110 28 L110 100" fill="none" stroke-width="18" stroke-linecap="round"/>
+      <ellipse cx="91" cy="104" rx="27" ry="20" transform="rotate(-24 91 104)" stroke="none"/>
+    </g>
   </defs>
-  <rect x="25.6" y="39.7" width="163.8" height="48.6" rx="24.3" fill="url(#c)"/>
-  <rect x="92.2" y="103.7" width="97.2" height="48.6" rx="24.3" fill="url(#g)"/>
-  <rect x="56.3" y="167.7" width="133.1" height="48.6" rx="24.3" fill="url(#p)"/>
-  <rect x="206.1" y="20.5" width="28.2" height="215" rx="14.1" fill="url(#a)"/>
+  <use href="#note" fill="url(#c)" stroke="url(#c)"/>
+  <use href="#note" fill="url(#g)" stroke="url(#g)" transform="rotate(120 128 128)"/>
+  <use href="#note" fill="url(#p)" stroke="url(#p)" transform="rotate(240 128 128)"/>
+  <circle cx="128" cy="128" r="13" fill="url(#a)"/>
 </svg>

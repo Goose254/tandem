@@ -210,69 +210,107 @@ pub fn round_corners(window: &WebviewWindow) {
 pub fn round_corners(_window: &WebviewWindow) {}
 
 // ---------------------------------------------------------------------------------------
-// Icon drawing: the Tandem mark (three staggered signal bars ending on one sync line).
+// Icon drawing: the Tandem mark (three notes wrapped round a centre point; each note's flag
+// sweeps a third of the ring). Slightly bolder than the logo so it survives 16 px.
 // ---------------------------------------------------------------------------------------
 
 type Rgb = [f32; 3];
+type Point = (f32, f32);
+
+const CENTRE: Point = (0.5, 0.5);
+/// The ring the flags draw, and half the line weight of flags and stems.
+const RING_RADIUS: f32 = 0.397;
+const HALF_LINE: f32 = 0.045;
+/// A flag starts at its stem's top and ends short of the next note (radians, clockwise).
+const FLAG_FROM: f32 = -1.749;
+const FLAG_TO: f32 = -0.138;
+const STEM_TOP: Point = (0.430, 0.109);
+const STEM_FOOT: Point = (0.430, 0.385);
+const HEAD: Point = (0.352, 0.402);
+const HEAD_RADII: Point = (0.120, 0.092);
+const HEAD_TILT: f32 = -0.419;
+const DOT_RADIUS: f32 = 0.062;
 
 fn hex(c: u32) -> Rgb {
     [((c >> 16) & 0xff) as f32, ((c >> 8) & 0xff) as f32, (c & 0xff) as f32]
 }
 
-/// Signed distance from (px, py) to a capsule spanning (x0..x1) at height cy with radius r.
-fn capsule_sd(px: f32, py: f32, x0: f32, x1: f32, cy: f32, r: f32) -> f32 {
-    let qx = px.clamp(x0 + r, x1 - r);
-    ((px - qx).powi(2) + (py - cy).powi(2)).sqrt() - r
+fn distance(a: Point, b: Point) -> f32 {
+    ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt()
 }
 
-fn vcapsule_sd(px: f32, py: f32, cx: f32, y0: f32, y1: f32, r: f32) -> f32 {
-    let qy = py.clamp(y0 + r, y1 - r);
-    ((px - cx).powi(2) + (py - qy).powi(2)).sqrt() - r
+/// Signed distance to the segment a-b thickened by `r`.
+fn capsule_sd(p: Point, a: Point, b: Point, r: f32) -> f32 {
+    let (px, py) = (p.0 - a.0, p.1 - a.1);
+    let (bx, by) = (b.0 - a.0, b.1 - a.1);
+    let t = ((px * bx + py * by) / (bx * bx + by * by)).clamp(0.0, 1.0);
+    ((px - bx * t).powi(2) + (py - by * t).powi(2)).sqrt() - r
+}
+
+/// Approximate signed distance to an ellipse tilted by `angle`.
+fn ellipse_sd(p: Point, centre: Point, radii: Point, angle: f32) -> f32 {
+    let (sin, cos) = angle.sin_cos();
+    let (dx, dy) = (p.0 - centre.0, p.1 - centre.1);
+    let (x, y) = (dx * cos + dy * sin, -dx * sin + dy * cos);
+    (((x / radii.0).powi(2) + (y / radii.1).powi(2)).sqrt() - 1.0) * radii.0.min(radii.1)
+}
+
+/// Signed distance to an arc of the ring between two angles, thickened by `half`.
+fn arc_sd(p: Point, from: f32, to: f32, half: f32) -> f32 {
+    use std::f32::consts::TAU;
+    let (dx, dy) = (p.0 - CENTRE.0, p.1 - CENTRE.1);
+    let mut angle = dy.atan2(dx);
+    while angle < from {
+        angle += TAU;
+    }
+    if angle <= to {
+        return (distance(p, CENTRE) - RING_RADIUS).abs() - half;
+    }
+    let end = |a: f32| (CENTRE.0 + RING_RADIUS * a.cos(), CENTRE.1 + RING_RADIUS * a.sin());
+    distance(p, end(from)).min(distance(p, end(to))) - half
+}
+
+/// Signed distance to one note in its own (unrotated) position.
+fn note_sd(p: Point) -> f32 {
+    arc_sd(p, FLAG_FROM, FLAG_TO, HALF_LINE)
+        .min(capsule_sd(p, STEM_TOP, STEM_FOOT, HALF_LINE))
+        .min(ellipse_sd(p, HEAD, HEAD_RADII, HEAD_TILT))
 }
 
 /// Draw the mark at `size` px. Geometry is in a 0..1 unit square, matching the SVG logo.
 pub fn draw_icon(size: u32, active: bool) -> Image<'static> {
     let s = size as f32;
-    // (start x, center y, color from, color to)
-    let bars: [(f32, f32, u32, u32); 3] = [
-        (0.10, 0.25, 0x1e9cc0, 0x6bbed5),
-        (0.36, 0.50, 0x54b24c, 0x8ecc89),
-        (0.22, 0.75, 0x7a56d0, 0xa78fe0),
-    ];
-    let bar_end = 0.74;
-    let r = 0.095;
-    let sync = (0.86, 0.08, 0.92, 0.055, 0xf2a81e);
+    // One note per third of a turn: (color from, color to).
+    let notes: [(u32, u32); 3] = [(0x1e9cc0, 0x6bbed5), (0x54b24c, 0x8ecc89), (0x7a56d0, 0xa78fe0)];
+    let dot = hex(0xf2a81e);
     let grey = hex(0x8c8c98);
 
     let mut rgba = vec![0u8; (size * size * 4) as usize];
     for y in 0..size {
         for x in 0..size {
-            let (px, py) = ((x as f32 + 0.5) / s, (y as f32 + 0.5) / s);
+            let p = ((x as f32 + 0.5) / s, (y as f32 + 0.5) / s);
             let mut color: Rgb = [0.0; 3];
             let mut alpha = 0f32;
-            for (x0, cy, c0, c1) in bars {
-                let d = capsule_sd(px, py, x0, bar_end, cy, r) * s;
-                let a = (0.5 - d).clamp(0.0, 1.0);
-                if a > 0.0 {
-                    let t = ((px - x0) / (bar_end - x0)).clamp(0.0, 1.0);
-                    let (a0, a1) = (hex(c0), hex(c1));
-                    let c = if active {
-                        [0, 1, 2].map(|i| a0[i] + (a1[i] - a0[i]) * t)
-                    } else {
-                        grey
-                    };
-                    color = [0, 1, 2].map(|i| color[i] * (1.0 - a) + c[i] * a);
-                    alpha = alpha + a * (1.0 - alpha);
+            let mut paint = |coverage: f32, c: Rgb| {
+                if coverage > 0.0 {
+                    color = [0, 1, 2].map(|i| color[i] * (1.0 - coverage) + c[i] * coverage);
+                    alpha += coverage * (1.0 - alpha);
                 }
+            };
+            for (k, (c0, c1)) in notes.iter().enumerate() {
+                // Rotate the pixel back by this note's turn instead of rotating the note.
+                let (sin, cos) = (k as f32 * std::f32::consts::TAU / 3.0).sin_cos();
+                let (dx, dy) = (p.0 - CENTRE.0, p.1 - CENTRE.1);
+                let local = (CENTRE.0 + dx * cos + dy * sin, CENTRE.1 - dx * sin + dy * cos);
+                let coverage = (0.5 - note_sd(local) * s).clamp(0.0, 1.0);
+                let t = ((local.0 - 0.3) / 0.6).clamp(0.0, 1.0);
+                let (a0, a1) = (hex(*c0), hex(*c1));
+                let c = if active { [0, 1, 2].map(|i| a0[i] + (a1[i] - a0[i]) * t) } else { grey };
+                paint(coverage, c);
             }
-            let (cx, y0, y1, sr, sc) = sync;
-            let d = vcapsule_sd(px, py, cx, y0, y1, sr) * s;
-            let a = (0.5 - d).clamp(0.0, 1.0);
-            if a > 0.0 {
-                let c = if active { hex(sc) } else { grey };
-                color = [0, 1, 2].map(|i| color[i] * (1.0 - a) + c[i] * a);
-                alpha = alpha + a * (1.0 - alpha);
-            }
+            let coverage = (0.5 - (distance(p, CENTRE) - DOT_RADIUS) * s).clamp(0.0, 1.0);
+            paint(coverage, if active { dot } else { grey });
+
             let o = ((y * size + x) * 4) as usize;
             rgba[o] = color[0] as u8;
             rgba[o + 1] = color[1] as u8;
@@ -281,4 +319,42 @@ pub fn draw_icon(size: u32, active: bool) -> Image<'static> {
         }
     }
     Image::new_owned(rgba, size, size)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Writes the tray icon to the temp directory for a visual check:
+    /// `cargo test -p tandem tray_icon_preview -- --ignored`.
+    #[test]
+    #[ignore]
+    fn tray_icon_preview() {
+        for (size, active) in [(16, true), (32, true), (32, false), (256, true)] {
+            let image = draw_icon(size, active);
+            let mut ppm = format!("P6 {size} {size} 255\n").into_bytes();
+            for px in image.rgba().chunks_exact(4) {
+                // Composite over a dark taskbar grey.
+                let a = px[3] as f32 / 255.0;
+                ppm.extend(px[..3].iter().map(|c| (*c as f32 * a + 32.0 * (1.0 - a)) as u8));
+            }
+            let name = format!("tandem-tray-{size}-{}.ppm", if active { "on" } else { "off" });
+            std::fs::write(std::env::temp_dir().join(name), ppm).unwrap();
+        }
+    }
+
+    #[test]
+    fn the_icon_has_three_notes_and_a_centre() {
+        let image = draw_icon(64, true);
+        let at = |x: f32, y: f32| {
+            let o = ((y * 64.0) as usize * 64 + (x * 64.0) as usize) * 4;
+            image.rgba()[o + 3]
+        };
+        // Centre point, each stem, and a point on the ring are painted; the corners are not.
+        assert!(at(0.5, 0.5) > 200);
+        assert!(at(0.43, 0.25) > 200);
+        assert!(at(0.5, 0.103) > 200);
+        assert_eq!(at(0.02, 0.02), 0);
+        assert_eq!(at(0.98, 0.98), 0);
+    }
 }
