@@ -68,7 +68,7 @@ fn run() -> Result<()> {
             println!("source: {} ({source_fmt})", src.name);
             println!("target: {} ({target_fmt})", dst.name);
 
-            let mut engine = Engine::start(SourceConfig { device_id: src.id.clone(), fmt: source_fmt })?;
+            let mut engine = Engine::start(SourceConfig { device_id: src.id.clone(), fmt: source_fmt, follow_volume: true })?;
             engine.set_clicks(clicks);
             engine.add_output(OutputConfig {
                 key: dst.id.clone(),

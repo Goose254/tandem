@@ -65,6 +65,7 @@ pub fn run() {
             commands::set_source,
             commands::add_output,
             commands::remove_output,
+            commands::restore_output,
             commands::set_output_enabled,
             commands::set_output_delay,
             commands::set_output_gain,

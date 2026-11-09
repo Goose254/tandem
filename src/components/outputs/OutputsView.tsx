@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { Plus, Trash2, Minus, AudioWaveform } from "lucide-react";
 import { Card, EmptyState, Notice, Section, ViewHeader } from "../common/Layout";
 import { IconButton, QuietButton } from "../common/Buttons";
@@ -17,6 +18,8 @@ export function OutputsView() {
   const t = useT();
   const settings = useStore((s) => s.settings);
   const status = useStore((s) => s.status);
+  const removed = useStore((s) => s.removed);
+  const undoRemove = useStore((s) => s.undoRemove);
   if (!settings) return null;
 
   return (
@@ -39,7 +42,12 @@ export function OutputsView() {
         <SourceCard />
       </Section>
       <Section label={t((d) => d.outputs.outputsLabel)} trailing={<AddOutput />}>
-        {settings.outputs.length === 0 ? (
+        {removed ? (
+          <Notice action={<QuietButton onClick={undoRemove}>{t((d) => d.outputs.undo)}</QuietButton>}>
+            {t((d) => d.outputs.removed, { name: removed.device.name })}
+          </Notice>
+        ) : null}
+        {settings.outputs.length === 0 && removed ? null : settings.outputs.length === 0 ? (
           <EmptyState
             title={t((d) => d.outputs.emptyTitle)}
             line={t((d) => d.outputs.emptyLine)}
@@ -104,7 +112,9 @@ function SourceCard() {
         ? t((d) => d.outputs.sourceWaiting)
         : src?.state === "error"
           ? t((d) => d.outputs.sourceError)
-          : t((d) => d.outputs.sourceOff);
+          : src?.state === "paused"
+            ? t((d) => d.outputs.sourcePaused)
+            : t((d) => d.outputs.sourceOff);
 
   return (
     <Card dim={!settings.enabled}>
@@ -129,6 +139,11 @@ function SourceCard() {
         </div>
       </div>
       <Meter level={src?.level ?? 0} muted={src?.state !== "running"} />
+      {src?.state === "error" && src.errorKind ? (
+        <Notice tone="warn">
+          <span title={src.error ?? undefined}>{t((d) => d.outputs.errors[src.errorKind!])}</span>
+        </Notice>
+      ) : null}
       <p className={styles.helper}>{t((d) => d.outputs.sourceHelp)}</p>
     </Card>
   );
@@ -184,6 +199,7 @@ function OutputCard({
   const t = useT();
   const locale = useLocale();
   const openSync = useStore((s) => s.openSync);
+  const removeOutput = useStore((s) => s.removeOutput);
   const id = output.device.id;
   const delay = delayFor(output, snapshot?.source.deviceId);
   const state = status?.state ?? "idle";
@@ -207,7 +223,7 @@ function OutputCard({
             onChange={(on) => void ipc.setOutputEnabled(id, on)}
             label={t((d) => d.outputs.enable)}
           />
-          <IconButton label={t((d) => d.outputs.remove)} small onClick={() => void ipc.removeOutput(id)}>
+          <IconButton label={t((d) => d.outputs.remove)} small onClick={() => removeOutput(output)}>
             <Trash2 size={15} />
           </IconButton>
         </div>
@@ -220,30 +236,22 @@ function OutputCard({
         </div>
         <div className={styles.field}>
           <span className={styles.fieldLabel}>{t((d) => d.outputs.gain)}</span>
-          <div className={styles.gain}>
-            <IconButton label="-1 dB" small onClick={() => void ipc.setOutputGain(id, output.gainDb - 1)}>
-              <Minus size={13} />
-            </IconButton>
-            <span className={`${styles.gainValue} tabular`}>
-              {formatDb(output.gainDb)} <small>{t((d) => d.units.db)}</small>
-            </span>
-            <IconButton label="+1 dB" small onClick={() => void ipc.setOutputGain(id, output.gainDb + 1)}>
-              <Plus size={13} />
-            </IconButton>
-          </div>
+          <GainControl value={output.gainDb} onChange={(db) => void ipc.setOutputGain(id, db)} />
         </div>
       </div>
 
       <div className={styles.foot}>
         <Meter level={status?.level ?? 0} muted={!live} />
-        <span className={`${styles.stats} tabular`}>
+        <span className={`${styles.stats} tabular`} title={(!live && status?.error) || undefined}>
           {live && status
             ? t((d) => d.outputs.stats, {
                 rate: status.sampleRate ? formatRate(status.sampleRate, locale) : "—",
                 ppm: formatPpm(status.correctionPpm),
                 lag: status.minLagMs != null ? formatMs(status.minLagMs, locale) : "—",
               })
-            : status?.error ?? ""}
+            : status?.errorKind
+              ? t((d) => d.outputs.errors[status.errorKind!])
+              : ""}
           {status && status.underruns > 0
             ? ` · ${t((d) => d.outputs.underruns, { n: status.underruns })}`
             : ""}
@@ -271,5 +279,70 @@ function OutputCard({
         <Notice>{t((d) => d.outputs.atZero, { lag: formatMs(status.minLagMs, locale) })}</Notice>
       ) : null}
     </Card>
+  );
+}
+
+const MIN_GAIN_DB = -40;
+const MAX_GAIN_DB = 12;
+
+/**
+ * Volume in dB: buttons step by 1, the arrow keys by 0.5 (0.1 with Shift), and the readout
+ * takes any typed value.
+ */
+function GainControl({ value, onChange }: { value: number; onChange: (db: number) => void }) {
+  const t = useT();
+  const [editing, setEditing] = useState<string | null>(null);
+  const cancelled = useRef(false);
+  const label = t((d) => d.outputs.gain);
+
+  const set = (db: number) => {
+    const clamped = Math.round(Math.min(MAX_GAIN_DB, Math.max(MIN_GAIN_DB, db)) * 10) / 10;
+    if (clamped !== value) onChange(clamped);
+  };
+  const commit = () => {
+    if (editing == null) return;
+    const n = Number(editing.replace(",", ".").replace("−", "-"));
+    setEditing(null);
+    if (cancelled.current) cancelled.current = false;
+    else if (editing.trim() !== "" && Number.isFinite(n)) set(n);
+  };
+
+  return (
+    <div className={styles.gain}>
+      <IconButton label="-1 dB" small onClick={() => set(value - 1)}>
+        <Minus size={13} />
+      </IconButton>
+      <label className={styles.gainValue}>
+        <input
+          className={`${styles.gainInput} tabular`}
+          value={editing ?? formatDb(value)}
+          aria-label={label}
+          inputMode="decimal"
+          onFocus={(e) => {
+            setEditing(formatDb(value));
+            e.currentTarget.select();
+          }}
+          onChange={(e) => setEditing(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.currentTarget.blur();
+            if (e.key === "Escape") {
+              cancelled.current = true;
+              e.currentTarget.blur();
+            }
+            if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+              e.preventDefault();
+              const step = (e.shiftKey ? 0.1 : 0.5) * (e.key === "ArrowUp" ? 1 : -1);
+              setEditing(null);
+              set(value + step);
+            }
+          }}
+        />
+        <small>{t((d) => d.units.db)}</small>
+      </label>
+      <IconButton label="+1 dB" small onClick={() => set(value + 1)}>
+        <Plus size={13} />
+      </IconButton>
+    </div>
   );
 }

@@ -108,10 +108,26 @@
 }
 
 .gainValue {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
   min-width: 64px;
-  text-align: center;
   font-size: 13px;
   font-weight: 600;
+  cursor: text;
+}
+
+.gainInput {
+  width: 5ch;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: right;
+  user-select: text;
 }
 
 .gainValue small {

@@ -78,6 +78,32 @@ pub struct Runtime {
     pub clicks: bool,
 }
 
+/// A coarse reason for a device error, which the UI translates. The raw message stays
+/// available next to it for bug reports.
+pub fn error_kind(message: &str) -> &'static str {
+    let m = message.to_lowercase();
+    if m.contains("8889000a") {
+        // AUDCLNT_E_DEVICE_IN_USE: another app holds the device in exclusive mode.
+        "inUse"
+    } else if m.contains("88890004") {
+        // AUDCLNT_E_DEVICE_INVALIDATED: unplugged, or its format was changed in Windows.
+        "invalidated"
+    } else if m.contains("stopped responding") {
+        "stalled"
+    } else {
+        "other"
+    }
+}
+
+/// Meter levels, sent more often than the full snapshot so the meters move smoothly.
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Levels {
+    pub source: f32,
+    /// By output device id.
+    pub outputs: std::collections::HashMap<String, f32>,
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum SourceState {
@@ -90,6 +116,8 @@ pub enum SourceState {
     Waiting,
     /// The source failed to open; retrying.
     Error,
+    /// Nothing plays: streams are closed until the source carries sound again.
+    Paused,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, PartialEq, Eq)]
@@ -118,8 +146,12 @@ pub struct SourceStatus {
     pub device_name: Option<String>,
     pub level: f32,
     pub error: Option<String>,
+    /// See [`error_kind`].
+    pub error_kind: Option<&'static str>,
     /// The source device's sample rate while capturing.
     pub sample_rate: Option<u32>,
+    /// The source applies its volume itself, so "follow the source volume" matters for it.
+    pub hardware_volume: bool,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -133,6 +165,8 @@ pub struct OutputStatusDto {
     pub underruns: u64,
     pub level: f32,
     pub error: Option<String>,
+    /// See [`error_kind`].
+    pub error_kind: Option<&'static str>,
     /// How far behind the source this output plays at a delay of 0 ms (its minimum path).
     pub min_lag_ms: Option<f64>,
     /// The output device's sample rate while it plays.

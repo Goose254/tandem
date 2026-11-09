@@ -32,6 +32,9 @@ const settings: Settings = {
   ],
   mic: { id: "mic", name: "Microphone (USB Audio)" },
   resyncOnReconnect: true,
+  syncReference: null,
+  followSourceVolume: true,
+  pauseWhenSilent: false,
   theme: "system",
   locale: (new URLSearchParams(location.search).get("lang") as "en" | "fr") ?? "en",
   closeToTray: true,
@@ -58,7 +61,9 @@ function snapshot(): Snapshot {
       deviceName: devices.outputs[0].name,
       level,
       error: null,
+      errorKind: null,
       sampleRate: settings.enabled ? 48000 : null,
+      hardwareVolume: true,
     },
     outputs: settings.outputs.map((o) => {
       const delay = o.delays.yamaha ?? o.defaultDelayMs;
@@ -72,6 +77,7 @@ function snapshot(): Snapshot {
         underruns: 0,
         level: playing ? level * Math.pow(10, o.gainDb / 20) : 0,
         error: null,
+        errorKind: null,
         minLagMs: playing ? 24.3 : null,
         sampleRate: playing ? (o.device.id === "hdmi" ? 44100 : 48000) : null,
       };
@@ -117,6 +123,9 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> =
       case "remove_output":
         settings.outputs = settings.outputs.filter((o) => o.device.id !== a.deviceId);
         break;
+      case "restore_output":
+        if (!output(a.output.device.id)) settings.outputs.push(a.output);
+        break;
       case "set_output_enabled":
         output(a.deviceId)!.enabled = a.enabled;
         break;
@@ -142,7 +151,7 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> =
         calibrating = a.deviceId;
         const o = output(a.deviceId)!;
         const before = o.delays.yamaha ?? o.defaultDelayMs;
-        const base = { deviceId: a.deviceId, automatic: false, offsetMs: null, previousDelayMs: before, delayMs: null, lagMs: null, failure: null };
+        const base = { deviceId: a.deviceId, automatic: false, offsetMs: null, previousDelayMs: before, delayMs: null, lagMs: null, reference: settings.syncReference, referenceDelayMs: null, failure: null };
         emit("calibration", { ...base, phase: "listening", pass: 1 } satisfies CalibrationEvent);
         setTimeout(() => emit("calibration", { ...base, phase: "listening", pass: 2 }), 2500);
         setTimeout(() => {

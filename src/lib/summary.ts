@@ -22,6 +22,8 @@ export function summarize(status: Snapshot | null, t: Translate): { tone: Tone; 
       };
     case "error":
       return { tone: "danger", text: t((d) => d.summary.error) };
+    case "paused":
+      return { tone: "idle", text: t((d) => d.summary.paused) };
     case "running": {
       const n = status.outputs.filter((o) => o.state === "playing").length;
       if (n === 0) {

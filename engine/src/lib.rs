@@ -7,3 +7,5 @@ pub mod control;
 pub mod devices;
 pub mod engine;
 pub mod mic;
+pub mod mix;
+pub mod sys;

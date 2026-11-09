@@ -31,6 +31,8 @@ use wasapi::{DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat, in
 
 use crate::control::{Action, DriftController};
 use crate::devices::Format;
+use crate::mix::Matrix;
+use crate::sys::{EndpointVolume, ProAudio};
 
 /// Delays are added on top of each output's minimum path (see [`OutputStatus::min_lag_ms`]),
 /// so 0 ms means "as early as this output can play".
@@ -40,6 +42,10 @@ pub const MAX_DELAY_MS: u32 = 2000;
 const CHUNK: usize = 128;
 /// Headroom kept in the FIFO at 0 ms on top of one loopback packet, against scheduling jitter.
 const SAFETY_S: f64 = 0.003;
+/// How often the source's own volume is read, in keepalive periods (about 10 ms each).
+const VOLUME_POLL_PERIODS: u32 = 4;
+/// Length of the fade applied to the last audio before an underrun's silence.
+const UNDERRUN_FADE_S: f64 = 0.003;
 /// Level meter fall time constant, in seconds.
 const METER_FALL_S: f32 = 0.35;
 
@@ -59,6 +65,8 @@ fn db_to_gain(db: f32) -> f32 {
 pub struct SourceConfig {
     pub device_id: String,
     pub fmt: Format,
+    /// See [`Engine::set_follow_volume`].
+    pub follow_volume: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -147,8 +155,12 @@ impl OutputHandle {
     pub fn is_alive(&self) -> bool {
         !self.shared.finished.load(Relaxed)
     }
-    fn stop(&mut self) {
+    /// Ask the output to stop without waiting for it. Dropping the handle waits.
+    pub fn signal_stop(&self) {
         self.shared.stop.store(true, Relaxed);
+    }
+    fn stop(&mut self) {
+        self.signal_stop();
         if let Some(t) = self.thread.take() {
             let _ = t.join();
         }
@@ -182,6 +194,12 @@ struct SourceShared {
     outputs: RwLock<Vec<Arc<OutputShared>>>,
     injection: Mutex<Injection>,
     level: AtomicU32,
+    /// Apply the source's hardware volume and mute to the outputs.
+    follow_volume: AtomicBool,
+    /// The gain to apply for that, kept current by the keepalive thread.
+    volume_gain: AtomicU32,
+    /// The source applies its volume or mute itself, after the loopback tap.
+    hardware_volume: AtomicBool,
 }
 
 pub struct Engine {
@@ -202,6 +220,9 @@ impl Engine {
             outputs: RwLock::new(Vec::new()),
             injection: Mutex::new(Injection::default()),
             level: f32_atomic(0.0),
+            follow_volume: AtomicBool::new(cfg.follow_volume),
+            volume_gain: f32_atomic(1.0),
+            hardware_volume: AtomicBool::new(false),
         });
         let mut threads = Vec::new();
         for (name, is_capture) in [("keepalive", false), ("capture", true)] {
@@ -212,6 +233,7 @@ impl Engine {
                     .name(name.into())
                     .spawn(move || {
                         let _ = initialize_mta();
+                        let _priority = ProAudio::enter();
                         let result = if is_capture {
                             capture_loop(&src, &id)
                         } else {
@@ -247,6 +269,19 @@ impl Engine {
 
     pub fn source_level(&self) -> f32 {
         f32::from_bits(self.source.level.load(Relaxed))
+    }
+
+    /// Loopback capture does not see a volume or mute that the source device applies itself
+    /// (most Bluetooth devices). When on, the outputs follow it, so the Windows volume keys
+    /// act on every speaker. A software volume is already in the captured audio and is left
+    /// alone either way.
+    pub fn set_follow_volume(&self, on: bool) {
+        self.source.follow_volume.store(on, Relaxed);
+    }
+
+    /// True when the source applies its volume itself, so following it makes a difference.
+    pub fn source_volume_is_hardware(&self) -> bool {
+        self.source.hardware_volume.load(Relaxed)
     }
 
     /// Calibration clicks: one short blip per second on the source device, mirrored to the
@@ -291,6 +326,7 @@ impl Engine {
             .name(format!("render {}", cfg.key))
             .spawn(move || {
                 let _ = initialize_mta();
+                let _priority = ProAudio::enter();
                 if let Err(e) = render_loop(&src, &out, &device_id, src_fmt, dst_fmt) {
                     *out.error.lock().unwrap() = Some(format!("{e:#}"));
                 }
@@ -306,6 +342,24 @@ impl Engine {
         self.source.outputs.write().unwrap().retain(|o| o.key != key);
         // Dropping the handle stops and joins its thread.
         self.outputs.retain(|o| o.key() != key);
+    }
+
+    /// Detach an output and ask it to stop, without waiting for its thread: the caller drops
+    /// the handle where blocking is fine (a thread on a vanished device can take a second).
+    pub fn take_output(&mut self, key: &str) -> Option<OutputHandle> {
+        self.source.outputs.write().unwrap().retain(|o| o.key != key);
+        let i = self.outputs.iter().position(|o| o.key() == key)?;
+        let handle = self.outputs.swap_remove(i);
+        handle.signal_stop();
+        Some(handle)
+    }
+
+    /// Ask every thread to stop without waiting. Dropping the engine waits.
+    pub fn signal_stop(&self) {
+        self.source.stop.store(true, Relaxed);
+        for o in &self.outputs {
+            o.signal_stop();
+        }
     }
 
     pub fn output(&self, key: &str) -> Option<&OutputHandle> {
@@ -374,10 +428,21 @@ fn keepalive_loop(src: &SourceShared, device_id: &str) -> Result<()> {
         .context("opening the source device for playback")?;
     let event = client.set_get_eventhandle()?;
     let render = client.get_audiorenderclient()?;
+    let volume = EndpointVolume::open(&dev).ok();
+    src.hardware_volume.store(volume.as_ref().is_some_and(|v| v.is_hardware()), Relaxed);
+    let mut periods: u32 = 0;
     let mut frame: u64 = 0;
     let mut buf = Vec::new();
     client.start_stream()?;
     while !src.stop.load(Relaxed) {
+        if periods % VOLUME_POLL_PERIODS == 0 {
+            let gain = match &volume {
+                Some(v) if src.follow_volume.load(Relaxed) => v.hidden_gain(),
+                _ => 1.0,
+            };
+            src.volume_gain.store(gain.to_bits(), Relaxed);
+        }
+        periods = periods.wrapping_add(1);
         let avail = client.get_available_space_in_frames()? as usize;
         let clicks = src.clicks.load(Relaxed);
         buf.clear();
@@ -477,6 +542,19 @@ fn shift_fifo(fifo: &mut VecDeque<f32>, frames: i64, channels: usize) {
     }
 }
 
+/// Fade the last `frames` of interleaved audio in `buf` down to silence.
+fn fade_out_tail(buf: &mut VecDeque<f32>, channels: usize, frames: usize) {
+    let have = buf.len() / channels;
+    let n = frames.min(have);
+    for i in 0..n {
+        let gain = (n - 1 - i) as f32 / n as f32;
+        let frame = have - n + i;
+        for c in 0..channels {
+            buf[frame * channels + c] *= gain;
+        }
+    }
+}
+
 fn render_loop(
     src_shared: &SourceShared,
     out: &OutputShared,
@@ -511,6 +589,7 @@ fn render_loop(
     let mut out_fifo: VecDeque<f32> = VecDeque::new();
     let mut bytes: Vec<u8> = Vec::new();
 
+    let matrix = Matrix::new(src.channels, dst.channels);
     let mut ctl = DriftController::default();
     let mut priming = true;
     let mut applied_delay_ms = out.delay_ms.load(Relaxed);
@@ -567,12 +646,18 @@ fn render_loop(
                     shift_fifo(&mut fifo, -excess.min(keep.max(0)), src.channels);
                     priming = false;
                     ctl.reset_filter();
+                    // Come back from silence with a ramp, not a step.
+                    current_gain = 0.0;
                 }
             }
             if priming || fifo.len() < in_buf.len() {
                 if !priming {
                     priming = true;
                     status.underruns += 1;
+                    // Out of audio: ease what is left into the silence that follows, so the
+                    // dropout is a dip instead of a click.
+                    let fade = (UNDERRUN_FADE_S * dst.rate as f64) as usize;
+                    fade_out_tail(&mut out_fifo, src.channels, fade);
                 }
                 drop(fifo);
                 out_fifo.resize(need, 0.0);
@@ -588,27 +673,22 @@ fn render_loop(
             out_fifo.extend(&out_buf[..produced * src.channels]);
         }
 
-        // Write to the device: map channels, apply a smoothed gain, measure the peak.
+        // Write to the device: mix channels, apply a smoothed gain, measure the peak.
         let target_gain = if out.muted.load(Relaxed) {
             0.0
         } else {
             f32::from_bits(out.gain.load(Relaxed))
+                * f32::from_bits(src_shared.volume_gain.load(Relaxed))
         };
         let gain_step = if avail > 0 { (target_gain - current_gain) / avail as f32 } else { 0.0 };
         let mut peak = 0f32;
         bytes.clear();
+        let pcm: &[f32] = out_fifo.make_contiguous();
         for f in 0..avail {
             current_gain += gain_step;
-            let base = f * src.channels;
+            let frame = &pcm[f * src.channels..(f + 1) * src.channels];
             for c in 0..dst.channels {
-                let raw = if src.channels == 1 {
-                    out_fifo[base]
-                } else if c < src.channels {
-                    out_fifo[base + c]
-                } else {
-                    0.0
-                };
-                let s = raw * current_gain;
+                let s = matrix.mix(frame, c) * current_gain;
                 peak = peak.max(s.abs());
                 bytes.extend_from_slice(&s.to_le_bytes());
             }
@@ -645,4 +725,46 @@ fn render_loop(
     }
     client.stop_stream()?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn shifting_a_fifo_inserts_silence_or_drops_whole_frames() {
+        let mut fifo: VecDeque<f32> = (1..=8).map(|v| v as f32).collect();
+        shift_fifo(&mut fifo, 1, 2);
+        assert_eq!(fifo.iter().copied().collect::<Vec<_>>(), [0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+        shift_fifo(&mut fifo, -2, 2);
+        assert_eq!(fifo.iter().copied().collect::<Vec<_>>(), [3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+        // Dropping more than there is empties it without panicking.
+        shift_fifo(&mut fifo, -100, 2);
+        assert!(fifo.is_empty());
+    }
+
+    #[test]
+    fn the_tail_fades_to_silence_and_the_head_is_untouched() {
+        let mut buf: VecDeque<f32> = std::iter::repeat_n(1.0, 16).collect();
+        fade_out_tail(&mut buf, 2, 4);
+        let v: Vec<f32> = buf.iter().copied().collect();
+        assert!(v[..8].iter().all(|s| *s == 1.0));
+        assert_eq!(&v[8..], [0.75, 0.75, 0.5, 0.5, 0.25, 0.25, 0.0, 0.0]);
+        // Shorter than the fade: still ends on silence.
+        let mut short: VecDeque<f32> = std::iter::repeat_n(1.0, 4).collect();
+        fade_out_tail(&mut short, 2, 100);
+        assert_eq!(short.back().copied(), Some(0.0));
+        // Empty: nothing to do.
+        fade_out_tail(&mut VecDeque::new(), 2, 4);
+    }
+
+    #[test]
+    fn clicks_are_one_short_blip_per_second() {
+        let rate = 48_000;
+        let loud = (0..rate as u64 * 2).filter(|f| click_sample(*f, rate).abs() > 0.01).count();
+        // Two blips of 4 ms each, minus the zero crossings.
+        assert!(loud > 0 && loud < 2 * rate * 4 / 1000);
+        assert_eq!(click_sample(rate as u64 / 2, rate), 0.0);
+        assert!(click_sample(6, rate).abs() <= 0.3);
+    }
 }

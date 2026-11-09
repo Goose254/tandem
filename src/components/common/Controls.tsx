@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent, ReactNode } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import styles from "./Controls.module.css";
 
@@ -97,7 +97,37 @@ export function Select({
 }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLUListElement>(null);
   const current = options.find((o) => o.value === value);
+
+  const optionButtons = () =>
+    Array.from(list.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []);
+
+  // Opening moves focus into the list (the current choice, else the first), so the arrow
+  // keys work right away.
+  useEffect(() => {
+    if (!open) return;
+    const all = optionButtons();
+    (all.find((b) => b.getAttribute("aria-selected") === "true") ?? all[0])?.focus();
+  }, [open]);
+
+  const onListKey = (e: ReactKeyboardEvent<HTMLUListElement>) => {
+    const all = optionButtons();
+    const at = all.indexOf(document.activeElement as HTMLButtonElement);
+    const to =
+      e.key === "ArrowDown"
+        ? Math.min(at + 1, all.length - 1)
+        : e.key === "ArrowUp"
+          ? Math.max(at - 1, 0)
+          : e.key === "Home"
+            ? 0
+            : e.key === "End"
+              ? all.length - 1
+              : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    all[to]?.focus();
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -105,7 +135,11 @@ export function Select({
       if (!wrap.current?.contains(e.target as Node)) setOpen(false);
     };
     const key = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        // Hand focus back to what opened the list.
+        wrap.current?.querySelector<HTMLElement>("button")?.focus();
+      }
     };
     document.addEventListener("mousedown", close);
     document.addEventListener("keydown", key);
@@ -146,7 +180,7 @@ export function Select({
       )}
       {open ? (
         <div className={`${styles.menu} ${align === "start" ? styles.menuStart : ""}`}>
-          <ul className={styles.list} role="listbox" aria-label={ariaLabel}>
+          <ul className={styles.list} role="listbox" aria-label={ariaLabel} ref={list} onKeyDown={onListKey}>
             {options.map((o) => (
               <li key={o.value}>
                 <button

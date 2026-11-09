@@ -15,7 +15,6 @@ use crate::state::{AppState, OutputState, Snapshot, SourceState};
 
 const TRAY_ID: &str = "tandem";
 const POPUP_MARGIN: f64 = 12.0;
-const TASKBAR_RESERVE: f64 = 48.0;
 /// A tray click right after the popup lost focus is the click that dismissed it.
 const REOPEN_GUARD: Duration = Duration::from_millis(250);
 
@@ -70,10 +69,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             if let TrayIconEvent::Click {
                 button: MouseButton::Left,
                 button_state: MouseButtonState::Up,
+                position,
                 ..
             } = event
             {
-                toggle_popup(tray.app_handle());
+                toggle_popup(tray.app_handle(), position);
             }
         })
         .build(app)?;
@@ -114,6 +114,7 @@ pub fn tooltip(snap: &Snapshot, settings: &Settings) -> String {
             None => "Waiting for the source".into(),
         },
         SourceState::Error => (if fr { "Source indisponible" } else { "Source unavailable" }).to_string(),
+        SourceState::Paused => (if fr { "En veille, rien ne joue" } else { "Asleep, nothing is playing" }).to_string(),
         SourceState::Running if playing == 0 => {
             (if fr { "Aucune sortie active" } else { "No active output" }).to_string()
         }
@@ -144,7 +145,7 @@ pub fn stamp_hidden(app: &AppHandle) {
     }
 }
 
-fn toggle_popup(app: &AppHandle) {
+fn toggle_popup(app: &AppHandle, click: PhysicalPosition<f64>) {
     let Some(window) = app.get_webview_window("tray") else {
         return;
     };
@@ -158,24 +159,31 @@ fn toggle_popup(app: &AppHandle) {
         stamp_hidden(app);
         return;
     }
-    position_popup(app, &window);
+    position_popup(app, &window, click);
     let _ = window.show();
     let _ = window.set_focus();
 }
 
-/// Seat the popup at the bottom-right of the primary monitor, above the taskbar.
-fn position_popup(app: &AppHandle, window: &WebviewWindow) {
-    let (Ok(Some(monitor)), Ok(size)) = (app.primary_monitor(), window.outer_size()) else {
+/// Seat the popup in the corner of the screen where the tray icon was clicked, inside that
+/// monitor's work area: wherever the taskbar is (bottom, top or a side, any monitor, any
+/// height), the popup sits next to it without covering it.
+fn position_popup(app: &AppHandle, window: &WebviewWindow, click: PhysicalPosition<f64>) {
+    let monitor = app
+        .monitor_from_point(click.x, click.y)
+        .ok()
+        .flatten()
+        .or_else(|| app.primary_monitor().ok().flatten());
+    let (Some(monitor), Ok(size)) = (monitor, window.outer_size()) else {
         return;
     };
-    let scale = monitor.scale_factor();
-    let margin = (POPUP_MARGIN * scale) as i32;
-    let reserve = (TASKBAR_RESERVE * scale) as i32;
-    let origin = monitor.position();
-    let extent = monitor.size();
-    let x = (origin.x + extent.width as i32 - size.width as i32 - margin).max(origin.x + margin);
-    let y = (origin.y + extent.height as i32 - size.height as i32 - margin - reserve).max(origin.y + margin);
-    let _ = window.set_position(PhysicalPosition::new(x, y));
+    let margin = (POPUP_MARGIN * monitor.scale_factor()) as i32;
+    let area = monitor.work_area();
+    let (left, top) = (area.position.x, area.position.y);
+    let (right, bottom) = (left + area.size.width as i32, top + area.size.height as i32);
+    let (w, h) = (size.width as i32, size.height as i32);
+    let x = if click.x >= (left + right) as f64 / 2.0 { right - w - margin } else { left + margin };
+    let y = if click.y >= (top + bottom) as f64 / 2.0 { bottom - h - margin } else { top + margin };
+    let _ = window.set_position(PhysicalPosition::new(x.max(left), y.max(top)));
 }
 
 /// Windows 11 rounds frameless windows only when asked.

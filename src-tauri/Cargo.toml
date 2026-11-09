@@ -22,7 +22,7 @@ tauri-plugin-autostart = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 wasapi = "0.27.0"
-tandem-engine = { path = "../engine" }
+tandem-engine = { path = "../engine", default-features = false }
 tauri-plugin-opener = "2"
 
 [target.'cfg(windows)'.dependencies]

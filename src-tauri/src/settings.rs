@@ -7,6 +7,9 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 pub const DEFAULT_DELAY_MS: u32 = 200;
+/// Format version written to the settings file. Bump it with a migration in
+/// [`Settings::load`] whenever the meaning of an existing field changes.
+pub const SETTINGS_VERSION: u32 = 1;
 
 /// A device remembered by id, with its name as a fallback: Windows sometimes re-creates a
 /// Bluetooth endpoint with a new id after re-pairing, while the name stays the same.
@@ -78,6 +81,9 @@ impl OutputSetting {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Settings {
+    /// Format version of the file. Files written before versions existed read as 0.
+    #[serde(default)]
+    pub version: u32,
     /// Master switch.
     pub enabled: bool,
     pub source: SourceSetting,
@@ -85,6 +91,14 @@ pub struct Settings {
     /// Microphone used for auto-sync.
     pub mic: Option<DeviceRef>,
     pub resync_on_reconnect: bool,
+    /// Auto-sync against this output (its device id) instead of the source: for a source
+    /// nobody listens to, which the microphone cannot hear.
+    pub sync_reference: Option<String>,
+    /// Apply the source's hardware volume and mute to the outputs, so the Windows volume
+    /// keys act on every speaker.
+    pub follow_source_volume: bool,
+    /// Close every stream after a while of silence so Windows can sleep.
+    pub pause_when_silent: bool,
     /// "system" | "light" | "dark"
     pub theme: String,
     /// "en" | "fr"
@@ -96,11 +110,15 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            version: SETTINGS_VERSION,
             enabled: true,
             source: SourceSetting::default(),
             outputs: Vec::new(),
             mic: None,
             resync_on_reconnect: false,
+            sync_reference: None,
+            follow_source_volume: true,
+            pause_when_silent: false,
             theme: "system".into(),
             locale: default_locale(),
             close_to_tray: true,
@@ -131,11 +149,29 @@ impl Settings {
         dir.join("settings.json")
     }
 
+    /// Load the settings, or the defaults when there is no file yet. A file that cannot be
+    /// used as it is never silently lost: the next save would overwrite it, so a copy is kept
+    /// next to it first (`settings.unreadable.json`, or `settings.v<N>.json` for a file from
+    /// a newer version of the app, whose extra fields this version would drop).
     pub fn load(dir: &Path) -> Self {
-        fs::read_to_string(Self::path(dir))
-            .ok()
-            .and_then(|s| serde_json::from_str(&s).ok())
-            .unwrap_or_default()
+        let path = Self::path(dir);
+        let Ok(text) = fs::read_to_string(&path) else {
+            return Self::default();
+        };
+        match serde_json::from_str::<Self>(&text) {
+            Ok(mut settings) => {
+                if settings.version > SETTINGS_VERSION {
+                    let _ = fs::copy(&path, dir.join(format!("settings.v{}.json", settings.version)));
+                }
+                // Versions 0 and 1 share one layout: nothing to migrate yet.
+                settings.version = SETTINGS_VERSION;
+                settings
+            }
+            Err(_) => {
+                let _ = fs::copy(&path, dir.join("settings.unreadable.json"));
+                Self::default()
+            }
+        }
     }
 
     /// Write atomically: a temp file then a rename, so a crash never leaves half a file.
@@ -172,6 +208,31 @@ mod tests {
         assert!(!s.enabled);
         assert_eq!(s.outputs[0].default_delay_ms, DEFAULT_DELAY_MS);
         assert!(s.close_to_tray);
+        assert_eq!(s.version, 0);
+        assert!(s.follow_source_volume);
+        assert!(!s.pause_when_silent);
+    }
+
+    #[test]
+    fn an_unreadable_file_is_kept_aside() {
+        let dir = std::env::temp_dir().join(format!("tandem-test-bad-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("settings.json"), "{ not json").unwrap();
+        assert_eq!(Settings::load(&dir), Settings::default());
+        assert_eq!(fs::read_to_string(dir.join("settings.unreadable.json")).unwrap(), "{ not json");
+        let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_file_from_a_newer_version_is_kept_aside() {
+        let dir = std::env::temp_dir().join(format!("tandem-test-new-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("settings.json"), r#"{"version":99,"enabled":false}"#).unwrap();
+        let s = Settings::load(&dir);
+        assert!(!s.enabled);
+        assert_eq!(s.version, SETTINGS_VERSION);
+        assert!(dir.join("settings.v99.json").exists());
+        let _ = fs::remove_dir_all(dir);
     }
 
     #[test]

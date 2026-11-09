@@ -30,14 +30,24 @@ export function DelayControl({
   const pending = useRef<number | null>(null);
   const timer = useRef<number | null>(null);
   const lastSent = useRef(value);
+  const cancelled = useRef(false);
+  // The slider covers the usual range for fine control, and the whole range once a delay
+  // goes beyond it. It only ever widens, so the thumb never jumps mid-drag.
+  const [wide, setWide] = useState(value > SLIDER_MAX);
+  const sliderMax = wide ? MAX_DELAY_MS : SLIDER_MAX;
 
-  // Follow the persisted value unless a local edit is in flight.
+  // Follow the persisted value unless a local edit is in flight. A value that changed
+  // elsewhere (auto-sync, another source) also resets what counts as "already sent":
+  // otherwise going back to the last value sent from here would be dropped as a repeat.
   useEffect(() => {
+    lastSent.current = value;
+    if (value > SLIDER_MAX) setWide(true);
     if (pending.current == null) setLocal(value);
   }, [value]);
 
   const send = (ms: number) => {
     const clamped = Math.round(Math.min(MAX_DELAY_MS, Math.max(MIN_DELAY_MS, ms)));
+    if (clamped > SLIDER_MAX) setWide(true);
     setLocal(clamped);
     pending.current = clamped;
     if (timer.current != null) return;
@@ -56,7 +66,9 @@ export function DelayControl({
     if (editing == null) return;
     const n = Number(editing.replace(",", "."));
     setEditing(null);
-    if (Number.isFinite(n)) send(n);
+    // Escape leaves the field without applying what was typed.
+    if (cancelled.current) cancelled.current = false;
+    else if (editing.trim() !== "" && Number.isFinite(n)) send(n);
   };
 
   const label = t((d) => d.outputs.delay);
@@ -85,7 +97,7 @@ export function DelayControl({
             onKeyDown={(e) => {
               if (e.key === "Enter") e.currentTarget.blur();
               if (e.key === "Escape") {
-                setEditing(null);
+                cancelled.current = true;
                 e.currentTarget.blur();
               }
               if (e.key === "ArrowUp" || e.key === "ArrowDown") {
@@ -107,9 +119,9 @@ export function DelayControl({
       </div>
       <div className={styles.slider}>
         <Slider
-          value={Math.min(local, SLIDER_MAX)}
+          value={Math.min(local, sliderMax)}
           min={MIN_DELAY_MS}
-          max={SLIDER_MAX}
+          max={sliderMax}
           onChange={send}
           ariaLabel={label}
           disabled={disabled}

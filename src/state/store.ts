@@ -6,7 +6,7 @@
 
 import { create } from "zustand";
 import { ipc, on } from "../lib/ipc";
-import type { CalibrationEvent, Devices, Settings, Snapshot } from "../lib/ipc";
+import type { CalibrationEvent, Devices, Levels, OutputSetting, Settings, Snapshot } from "../lib/ipc";
 
 export type View = "outputs" | "sync" | "settings";
 
@@ -19,6 +19,10 @@ type Store = {
   calibration: Record<string, CalibrationEvent>;
   view: View;
   syncTarget: string | null;
+  /** The output removed last, kept for a few seconds so the removal can be undone. */
+  removed: OutputSetting | null;
+  removeOutput: (output: OutputSetting) => void;
+  undoRemove: () => void;
   setView: (view: View) => void;
   openSync: (deviceId: string) => void;
   setSyncTarget: (deviceId: string) => void;
@@ -27,7 +31,10 @@ type Store = {
   refreshDevices: () => Promise<void>;
 };
 
-export const useStore = create<Store>((set) => ({
+const UNDO_WINDOW_MS = 8000;
+let undoTimer: number | undefined;
+
+export const useStore = create<Store>((set, get) => ({
   ready: false,
   settings: null,
   status: null,
@@ -36,6 +43,19 @@ export const useStore = create<Store>((set) => ({
   calibration: {},
   view: "outputs",
   syncTarget: null,
+  removed: null,
+  removeOutput: (output) => {
+    window.clearTimeout(undoTimer);
+    set({ removed: output });
+    undoTimer = window.setTimeout(() => set({ removed: null }), UNDO_WINDOW_MS);
+    void ipc.removeOutput(output.device.id);
+  },
+  undoRemove: () => {
+    const output = get().removed;
+    window.clearTimeout(undoTimer);
+    set({ removed: null });
+    if (output) void ipc.restoreOutput(output);
+  },
   setView: (view) => set({ view }),
   openSync: (deviceId) => set({ view: "sync", syncTarget: deviceId }),
   setSyncTarget: (deviceId) => set({ syncTarget: deviceId }),
@@ -69,6 +89,21 @@ export async function startSync(): Promise<void> {
     setState({ ready: true });
   }
   await on<Snapshot>("status", (status) => setState({ status }));
+  await on<Levels>("levels", (levels) =>
+    setState((s) =>
+      s.status
+        ? {
+            status: {
+              ...s.status,
+              source: { ...s.status.source, level: levels.source },
+              outputs: s.status.outputs.map((o) =>
+                o.deviceId in levels.outputs ? { ...o, level: levels.outputs[o.deviceId] } : o,
+              ),
+            },
+          }
+        : {},
+    ),
+  );
   await on<Settings>("settings", (settings) => setState({ settings }));
   await on<CalibrationEvent>("calibration", (ev) =>
     setState((s) => ({ calibration: { ...s.calibration, [ev.deviceId]: ev } })),

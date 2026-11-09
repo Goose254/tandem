@@ -55,7 +55,22 @@ pub fn add_output(app: AppHandle, state: State<AppState>, device: DeviceRef) {
 
 #[tauri::command]
 pub fn remove_output(app: AppHandle, state: State<AppState>, device_id: String) {
-    commit(&app, &state, |s| s.outputs.retain(|o| o.device.id != device_id));
+    commit(&app, &state, |s| {
+        s.outputs.retain(|o| o.device.id != device_id);
+        if s.sync_reference.as_deref() == Some(device_id.as_str()) {
+            s.sync_reference = None;
+        }
+    });
+}
+
+/// Put back an output exactly as it was (undo of a removal), with its remembered delays.
+#[tauri::command]
+pub fn restore_output(app: AppHandle, state: State<AppState>, output: OutputSetting) {
+    commit(&app, &state, |s| {
+        if s.output_mut(&output.device.id).is_none() {
+            s.outputs.push(output);
+        }
+    });
 }
 
 #[tauri::command]
@@ -78,14 +93,20 @@ pub fn set_output_delay(app: AppHandle, state: State<AppState>, device_id: Strin
 #[tauri::command]
 pub fn set_output_gain(app: AppHandle, state: State<AppState>, device_id: String, gain_db: f32) {
     let db = gain_db.clamp(-40.0, 12.0);
-    if let Some(h) = state.runtime.lock().unwrap().engine.as_ref().and_then(|e| e.output(&device_id)) {
-        h.set_gain_db(db);
-    }
-    commit(&app, &state, |s| {
-        if let Some(o) = s.output_mut(&device_id) {
-            o.gain_db = db;
+    {
+        // Engine and settings change together under the runtime lock, so the supervisor
+        // never re-applies an older value in between.
+        let rt = state.runtime.lock().unwrap();
+        if let Some(h) = rt.engine.as_ref().and_then(|e| e.output(&device_id)) {
+            h.set_gain_db(db);
         }
-    });
+        state.update_settings(|s| {
+            if let Some(o) = s.output_mut(&device_id) {
+                o.gain_db = db;
+            }
+        });
+    }
+    let _ = app.emit("settings", state.settings());
 }
 
 #[tauri::command]
@@ -105,6 +126,11 @@ pub struct PreferencesPatch {
     close_to_tray: Option<bool>,
     start_minimized: Option<bool>,
     resync_on_reconnect: Option<bool>,
+    follow_source_volume: Option<bool>,
+    pause_when_silent: Option<bool>,
+    /// `Some(None)` goes back to syncing against the source.
+    #[serde(default, deserialize_with = "double_option")]
+    sync_reference: Option<Option<String>>,
     /// `Some(None)` clears the microphone.
     #[serde(default, deserialize_with = "double_option")]
     mic: Option<Option<DeviceRef>>,
@@ -140,6 +166,15 @@ pub fn set_preferences(app: AppHandle, state: State<AppState>, patch: Preference
         }
         if let Some(v) = patch.mic {
             s.mic = v;
+        }
+        if let Some(v) = patch.follow_source_volume {
+            s.follow_source_volume = v;
+        }
+        if let Some(v) = patch.pause_when_silent {
+            s.pause_when_silent = v;
+        }
+        if let Some(v) = patch.sync_reference {
+            s.sync_reference = v;
         }
     });
     if locale_changed {

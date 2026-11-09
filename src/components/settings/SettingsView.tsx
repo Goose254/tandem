@@ -53,6 +53,23 @@ export function SettingsView() {
           </Row>
         </Section>
 
+        <Section label={t((d) => d.settings.audio)}>
+          <Row label={t((d) => d.settings.followVolume)} helper={t((d) => d.settings.followVolumeHelp)}>
+            <Switch
+              checked={settings.followSourceVolume}
+              label={t((d) => d.settings.followVolume)}
+              onChange={(on) => void ipc.setPreferences({ followSourceVolume: on })}
+            />
+          </Row>
+          <Row label={t((d) => d.settings.pauseSilent)} helper={t((d) => d.settings.pauseSilentHelp)}>
+            <Switch
+              checked={settings.pauseWhenSilent}
+              label={t((d) => d.settings.pauseSilent)}
+              onChange={(on) => void ipc.setPreferences({ pauseWhenSilent: on })}
+            />
+          </Row>
+        </Section>
+
         <Section label={t((d) => d.settings.startup)}>
           <Row label={t((d) => d.settings.autostart)} helper={t((d) => d.settings.autostartHelp)}>
             <Switch

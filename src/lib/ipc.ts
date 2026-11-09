@@ -37,13 +37,17 @@ export type Settings = {
   outputs: OutputSetting[];
   mic: DeviceRef | null;
   resyncOnReconnect: boolean;
+  /** Auto-sync against this output (device id) instead of the source. */
+  syncReference: string | null;
+  followSourceVolume: boolean;
+  pauseWhenSilent: boolean;
   theme: ThemeChoice;
   locale: Locale;
   closeToTray: boolean;
   startMinimized: boolean;
 };
 
-export type SourceState = "off" | "running" | "waiting" | "error";
+export type SourceState = "off" | "running" | "waiting" | "error" | "paused";
 export type OutputState =
   | "disabled"
   | "buffering"
@@ -52,6 +56,12 @@ export type OutputState =
   | "isSource"
   | "idle"
   | "error";
+
+/** A coarse reason for a device error; the raw message stays in `error`. */
+export type ErrorKind = "inUse" | "invalidated" | "stalled" | "other";
+
+/** Meter levels, sent more often than the full snapshot. */
+export type Levels = { source: number; outputs: Record<string, number> };
 
 export type OutputStatus = {
   deviceId: string;
@@ -62,6 +72,7 @@ export type OutputStatus = {
   underruns: number;
   level: number;
   error: string | null;
+  errorKind: ErrorKind | null;
   /** How far behind the source this output plays at 0 ms (its minimum path). */
   minLagMs: number | null;
   sampleRate: number | null;
@@ -75,7 +86,10 @@ export type Snapshot = {
     deviceName: string | null;
     level: number;
     error: string | null;
+    errorKind: ErrorKind | null;
     sampleRate: number | null;
+    /** The source applies its volume itself, so following it makes a difference. */
+    hardwareVolume: boolean;
   };
   outputs: OutputStatus[];
   clicks: boolean;
@@ -87,6 +101,7 @@ export type Failure =
   | "micMissing"
   | "micFailed"
   | "notRunning"
+  | "referenceNotRunning"
   | "sourceNotHeard"
   | "targetNotHeard"
   | "tooShort"
@@ -102,6 +117,10 @@ export type CalibrationEvent = {
   previousDelayMs: number | null;
   delayMs: number | null;
   lagMs: number | null;
+  /** Device id of the output used in place of the source, if any. */
+  reference: string | null;
+  /** Set when the reference had to be delayed to line up: its new delay. */
+  referenceDelayMs: number | null;
   failure: Failure | null;
 };
 
@@ -112,6 +131,9 @@ export type PreferencesPatch = Partial<{
   startMinimized: boolean;
   resyncOnReconnect: boolean;
   mic: DeviceRef | null;
+  syncReference: string | null;
+  followSourceVolume: boolean;
+  pauseWhenSilent: boolean;
 }>;
 
 export const ipc = {
@@ -123,6 +145,7 @@ export const ipc = {
     invoke<void>("set_source", { followDefault, device }),
   addOutput: (device: DeviceRef) => invoke<void>("add_output", { device }),
   removeOutput: (deviceId: string) => invoke<void>("remove_output", { deviceId }),
+  restoreOutput: (output: OutputSetting) => invoke<void>("restore_output", { output }),
   setOutputEnabled: (deviceId: string, enabled: boolean) =>
     invoke<void>("set_output_enabled", { deviceId, enabled }),
   setOutputDelay: (deviceId: string, delayMs: number) =>

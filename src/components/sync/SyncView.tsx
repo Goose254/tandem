@@ -12,6 +12,9 @@ import { formatMs } from "../../lib/summary";
 import type { Translate } from "../../i18n";
 import styles from "./SyncView.module.css";
 
+/** Select value for "line up with the source". */
+const SOURCE = "";
+
 export function SyncView() {
   const t = useT();
   const locale = useLocale();
@@ -65,7 +68,7 @@ export function SyncView() {
             <Switch checked={clicks} onChange={(on) => void ipc.setClicks(on)} label={t((d) => d.sync.clicks)} />
           </Row>
           <div className={styles.dial}>
-            <DelayControl large value={delay} onChange={(ms) => void ipc.setOutputDelay(id, ms)} />
+            <DelayControl key={id} large value={delay} onChange={(ms) => void ipc.setOutputDelay(id, ms)} />
           </div>
           {delay === 0 && outStatus?.minLagMs != null ? (
             <Notice>{t((d) => d.outputs.atZero, { lag: formatMs(outStatus.minLagMs, locale) })}</Notice>
@@ -94,6 +97,14 @@ function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) 
   const options = devices.inputs.map((d) => ({ value: d.id, label: d.name }));
   if (mic && !devices.inputs.some((d) => d.id === mic.id)) options.push({ value: mic.id, label: mic.name });
 
+  // What this output is lined up with: the source, or another output standing in for it.
+  const others = settings.outputs.filter((o) => o.device.id !== deviceId && o.enabled);
+  const reference = others.find((o) => o.device.id === settings.syncReference) ?? null;
+  const referenceOptions = [
+    { value: SOURCE, label: t((d) => d.sync.referenceSource) },
+    ...others.map((o) => ({ value: o.device.id, label: o.device.name })),
+  ];
+
   return (
     <Card>
       <h3 className={styles.cardTitle}>
@@ -116,6 +127,18 @@ function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) 
           />
         </div>
       </Row>
+      {others.length > 0 ? (
+        <Row label={t((d) => d.sync.reference)} helper={t((d) => d.sync.referenceHelp)}>
+          <div className={styles.pull}>
+            <Select
+              value={reference?.device.id ?? SOURCE}
+              options={referenceOptions}
+              onChange={(id) => void ipc.setPreferences({ syncReference: id === SOURCE ? null : id })}
+              ariaLabel={t((d) => d.sync.reference)}
+            />
+          </div>
+        </Row>
+      ) : null}
       <div className={styles.run}>
         <PrimaryButton
           disabled={!micConnected || !playing || calibrating != null}
@@ -129,7 +152,12 @@ function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) 
             {t((d) => d.sync.running, { pass: event?.phase === "listening" ? event.pass : 1 })}
           </span>
         ) : event ? (
-          <Result event={event} t={t} locale={locale} />
+          <Result
+            event={event}
+            t={t}
+            locale={locale}
+            referenceName={settings.outputs.find((o) => o.device.id === event.reference)?.device.name}
+          />
         ) : (
           <span className={styles.hint}>{t((d) => d.sync.pauseHint)}</span>
         )}
@@ -145,7 +173,17 @@ function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) 
   );
 }
 
-function Result({ event, t, locale }: { event: CalibrationEvent; t: Translate; locale: string }) {
+function Result({
+  event,
+  t,
+  locale,
+  referenceName,
+}: {
+  event: CalibrationEvent;
+  t: Translate;
+  locale: string;
+  referenceName?: string;
+}) {
   if (event.phase === "failed" && event.failure) {
     return <span className={styles.failure}>{t((d) => d.sync.failure[event.failure!])}</span>;
   }
@@ -155,6 +193,17 @@ function Result({ event, t, locale }: { event: CalibrationEvent; t: Translate; l
     );
   }
   if (event.phase !== "done" || event.delayMs == null) return null;
+  if (event.referenceDelayMs != null) {
+    return (
+      <span className={styles.success}>
+        {t((d) => d.sync.resultReferenceMoved, {
+          delay: event.delayMs,
+          name: referenceName ?? t((d) => d.sync.reference),
+          refDelay: event.referenceDelayMs,
+        })}
+      </span>
+    );
+  }
   const delta = event.delayMs - (event.previousDelayMs ?? event.delayMs);
   const delay = event.delayMs;
   const text =
