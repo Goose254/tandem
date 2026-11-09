@@ -122,9 +122,10 @@ fn status_line(engine: &Engine, key: &str) -> String {
     let st = out.status();
     let state = if st.running { "playing" } else { "buffering" };
     format!(
-        "delay {:>4} ms | {state:<9} | buffered {:>6.1} ms | clock corr {:>+5.0} ppm | underruns {} | resyncs {} | clicks {}",
+        "delay {:>4} ms | {state:<9} | applied {:>6.1} ms | min lag {:>4.1} ms | clock corr {:>+5.0} ppm | underruns {} | resyncs {} | clicks {}",
         out.delay_ms(),
         st.buffered_ms,
+        st.min_lag_ms,
         st.correction_ppm,
         st.underruns,
         st.resyncs,

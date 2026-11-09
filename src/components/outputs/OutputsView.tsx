@@ -1,14 +1,14 @@
 import { Plus, Trash2, Minus, AudioWaveform } from "lucide-react";
-import { Card, EmptyState, Section, ViewHeader } from "../common/Layout";
+import { Card, EmptyState, Notice, Section, ViewHeader } from "../common/Layout";
 import { IconButton, QuietButton } from "../common/Buttons";
 import { Meter, Select, StatusDot, Switch } from "../common/Controls";
 import type { SelectOption, Tone } from "../common/Controls";
 import { DelayControl } from "../common/DelayControl";
 import { delayFor, ipc } from "../../lib/ipc";
 import type { OutputSetting, OutputStatus, Snapshot } from "../../lib/ipc";
-import { formatDb, formatPpm, outputTone } from "../../lib/summary";
+import { formatDb, formatMs, formatPpm, formatRate, outputTone } from "../../lib/summary";
 import { useStore } from "../../state/store";
-import { useT } from "../../i18n";
+import { useLocale, useT } from "../../i18n";
 import styles from "./OutputsView.module.css";
 
 const DEFAULT = "__default__";
@@ -64,6 +64,7 @@ export function OutputsView() {
 
 function SourceCard() {
   const t = useT();
+  const locale = useLocale();
   const settings = useStore((s) => s.settings)!;
   const status = useStore((s) => s.status);
   const devices = useStore((s) => s.devices);
@@ -122,6 +123,9 @@ function SourceCard() {
         <div className={styles.state}>
           <StatusDot tone={tone} />
           <span>{stateText}</span>
+          {src?.state === "running" && src.sampleRate ? (
+            <span className={`${styles.rate} tabular`}>{formatRate(src.sampleRate, locale)}</span>
+          ) : null}
         </div>
       </div>
       <Meter level={src?.level ?? 0} muted={src?.state !== "running"} />
@@ -178,10 +182,12 @@ function OutputCard({
   snapshot: Snapshot | null;
 }) {
   const t = useT();
+  const locale = useLocale();
   const openSync = useStore((s) => s.openSync);
   const id = output.device.id;
   const delay = delayFor(output, snapshot?.source.deviceId);
   const state = status?.state ?? "idle";
+  const sourceRate = snapshot?.source.sampleRate ?? null;
   const live = state === "playing" || state === "buffering";
   const stateText = t((d) => d.outputs.state[state]);
 
@@ -233,8 +239,9 @@ function OutputCard({
         <span className={`${styles.stats} tabular`}>
           {live && status
             ? t((d) => d.outputs.stats, {
-                buffer: status.bufferedMs.toFixed(1),
+                rate: status.sampleRate ? formatRate(status.sampleRate, locale) : "—",
                 ppm: formatPpm(status.correctionPpm),
+                lag: status.minLagMs != null ? formatMs(status.minLagMs, locale) : "—",
               })
             : status?.error ?? ""}
           {status && status.underruns > 0
@@ -246,6 +253,23 @@ function OutputCard({
           {t((d) => d.outputs.sync)}
         </QuietButton>
       </div>
+
+      {live && status?.sampleRate && sourceRate && status.sampleRate !== sourceRate ? (
+        <Notice
+          tone="warn"
+          action={
+            <QuietButton onClick={() => void ipc.openSoundSettings()}>{t((d) => d.outputs.openSound)}</QuietButton>
+          }
+        >
+          {t((d) => d.outputs.rateMismatch, {
+            out: formatRate(status.sampleRate, locale),
+            src: formatRate(sourceRate, locale),
+          })}
+        </Notice>
+      ) : null}
+      {live && delay === 0 && status?.minLagMs != null ? (
+        <Notice>{t((d) => d.outputs.atZero, { lag: formatMs(status.minLagMs, locale) })}</Notice>
+      ) : null}
     </Card>
   );
 }

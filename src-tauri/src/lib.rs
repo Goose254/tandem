@@ -73,6 +73,7 @@ pub fn run() {
             commands::get_autostart,
             commands::set_autostart,
             commands::start_calibration,
+            commands::open_sound_settings,
             commands::show_main_window,
             commands::hide_tray_popup,
             commands::quit_app,

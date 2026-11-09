@@ -57,3 +57,13 @@ export function formatDb(db: number): string {
   const r = Math.round(db * 10) / 10;
   return `${r > 0 ? "+" : ""}${r.toFixed(1)}`;
 }
+
+/** 48000 -> "48 kHz", 44100 -> "44.1 kHz" (with a decimal comma in French). */
+export function formatRate(hz: number, locale: string): string {
+  const khz = hz / 1000;
+  return `${khz.toLocaleString(locale, { maximumFractionDigits: 1 })} kHz`;
+}
+
+export function formatMs(ms: number, locale: string): string {
+  return ms.toLocaleString(locale, { maximumFractionDigits: 0 });
+}

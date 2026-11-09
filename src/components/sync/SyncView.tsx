@@ -1,18 +1,20 @@
 import { useEffect } from "react";
 import { Ear, Mic } from "lucide-react";
-import { Card, EmptyState, Row, SyncSpinner, ViewHeader } from "../common/Layout";
+import { Card, EmptyState, Notice, Row, SyncSpinner, ViewHeader } from "../common/Layout";
 import { PrimaryButton } from "../common/Buttons";
 import { SegmentedControl, Select, Switch } from "../common/Controls";
 import { DelayControl } from "../common/DelayControl";
 import { delayFor, ipc } from "../../lib/ipc";
 import type { CalibrationEvent } from "../../lib/ipc";
 import { useStore } from "../../state/store";
-import { useT } from "../../i18n";
+import { useLocale, useT } from "../../i18n";
+import { formatMs } from "../../lib/summary";
 import type { Translate } from "../../i18n";
 import styles from "./SyncView.module.css";
 
 export function SyncView() {
   const t = useT();
+  const locale = useLocale();
   const settings = useStore((s) => s.settings)!;
   const status = useStore((s) => s.status);
   const syncTarget = useStore((s) => s.syncTarget);
@@ -65,7 +67,11 @@ export function SyncView() {
           <div className={styles.dial}>
             <DelayControl large value={delay} onChange={(ms) => void ipc.setOutputDelay(id, ms)} />
           </div>
-          <p className={styles.tip}>{t((d) => d.sync.earTip)}</p>
+          {delay === 0 && outStatus?.minLagMs != null ? (
+            <Notice>{t((d) => d.outputs.atZero, { lag: formatMs(outStatus.minLagMs, locale) })}</Notice>
+          ) : (
+            <p className={styles.tip}>{t((d) => d.sync.earTip)}</p>
+          )}
         </Card>
         <MicCard deviceId={id} playing={outStatus?.state === "playing"} />
       </div>
@@ -75,6 +81,7 @@ export function SyncView() {
 
 function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) {
   const t = useT();
+  const locale = useLocale();
   const settings = useStore((s) => s.settings)!;
   const devices = useStore((s) => s.devices);
   const refresh = useStore((s) => s.refreshDevices);
@@ -122,7 +129,7 @@ function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) 
             {t((d) => d.sync.running, { pass: event?.phase === "listening" ? event.pass : 1 })}
           </span>
         ) : event ? (
-          <Result event={event} t={t} />
+          <Result event={event} t={t} locale={locale} />
         ) : (
           <span className={styles.hint}>{t((d) => d.sync.pauseHint)}</span>
         )}
@@ -138,9 +145,14 @@ function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) 
   );
 }
 
-function Result({ event, t }: { event: CalibrationEvent; t: Translate }) {
+function Result({ event, t, locale }: { event: CalibrationEvent; t: Translate; locale: string }) {
   if (event.phase === "failed" && event.failure) {
     return <span className={styles.failure}>{t((d) => d.sync.failure[event.failure!])}</span>;
+  }
+  if (event.phase === "limited" && event.lagMs != null) {
+    return (
+      <span className={styles.failure}>{t((d) => d.sync.resultLimited, { lag: formatMs(event.lagMs!, locale) })}</span>
+    );
   }
   if (event.phase !== "done" || event.delayMs == null) return null;
   const delta = event.delayMs - (event.previousDelayMs ?? event.delayMs);

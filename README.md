@@ -68,6 +68,20 @@ user (no admin rights) and adds a Start menu entry and an uninstaller.
 **Recommended setup:** make the slowest device (the Bluetooth amp) the Windows default output,
 leave the source on "Windows default output", and add the other devices as outputs.
 
+**Delays** are added on top of each output's minimum path (its device buffer, the resampler and
+one loopback packet), so **0 ms means "as early as this output can play"**. The app shows that
+minimum lag per output. If an output still sounds late at 0 ms, the source is too fast for it.
+Tandem can only delay outputs, never play them earlier, so pick a slower source.
+
+**Several outputs of one interface** (e.g. Main Output and Output 3/4): make the source a device
+you don't listen to (an unused output) and add every speaker as an output. They then all go
+through the same path and line up at 0 ms.
+
+**Sample rates:** every output is resampled from the source rate anyway, to absorb clock drift.
+Still, give all devices the same rate in Windows (Sound settings > device > Properties >
+Advanced) so that resampling stays a tiny drift correction. Tandem flags any output whose rate
+differs from the source.
+
 ## Develop
 
 Requirements: Rust (MSVC toolchain), Node 20+, and WebView2 (built into Windows 11).

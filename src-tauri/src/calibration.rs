@@ -45,7 +45,6 @@ pub enum Failure {
     SourceNotHeard,
     TargetNotHeard,
     TooShort,
-    OutputSlower,
     Busy,
 }
 
@@ -63,7 +62,8 @@ impl From<CalibrationError> for Failure {
 #[serde(rename_all = "camelCase")]
 pub struct CalibrationEvent {
     pub device_id: String,
-    /// "listening" | "done" | "failed"
+    /// "listening" | "done" | "limited" | "failed". "limited": the output was set to 0 ms
+    /// and still plays `lag_ms` after the source, so the source is too fast for it.
     pub phase: &'static str,
     pub pass: u8,
     pub automatic: bool,
@@ -73,6 +73,8 @@ pub struct CalibrationEvent {
     pub previous_delay_ms: Option<u32>,
     /// Delay after auto-sync.
     pub delay_ms: Option<u32>,
+    /// With phase "limited": how late the output still is at 0 ms.
+    pub lag_ms: Option<f64>,
     pub failure: Option<Failure>,
 }
 
@@ -96,6 +98,7 @@ fn run(app: &AppHandle, device_id: &str, automatic: bool) {
         offset_ms: None,
         previous_delay_ms: None,
         delay_ms: None,
+        lag_ms: None,
         failure: None,
     };
     {
@@ -125,16 +128,16 @@ fn run(app: &AppHandle, device_id: &str, automatic: bool) {
             break;
         };
         let wanted = delay as f64 - offset * 1000.0;
-        if wanted < MIN_DELAY_MS as f64 - 0.5 {
-            last.offset_ms = Some(offset * 1000.0);
-            outcome = Err(Failure::OutputSlower);
-            break;
-        }
         let new_delay = wanted.round().max(MIN_DELAY_MS as f64) as u32;
         apply_delay(&state, device_id, new_delay);
         last.pass = pass;
         last.offset_ms = Some(offset * 1000.0);
         last.delay_ms = Some(new_delay);
+        if wanted < MIN_DELAY_MS as f64 - 0.5 {
+            // Even at 0 ms the output lags: no delay can fix that, only a slower source.
+            last.lag_ms = Some(MIN_DELAY_MS as f64 - wanted);
+            break;
+        }
         if (offset * 1000.0).abs() < GOOD_ENOUGH_MS {
             break;
         }
@@ -144,6 +147,7 @@ fn run(app: &AppHandle, device_id: &str, automatic: bool) {
 
     *state.calibrating.lock().unwrap() = None;
     match outcome {
+        Ok(()) if last.lag_ms.is_some() => emit(app, CalibrationEvent { phase: "limited", ..last }),
         Ok(()) => emit(app, CalibrationEvent { phase: "done", ..last }),
         Err(f) => emit(app, CalibrationEvent { phase: "failed", failure: Some(f), ..last }),
     }

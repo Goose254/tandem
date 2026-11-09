@@ -43,7 +43,10 @@ export const fr: Dict = {
       idle: "Inactive",
       error: "Impossible d'ouvrir ce périphérique, nouvel essai…",
     },
-    stats: "tampon {buffer} ms · dérive {ppm} ppm",
+    stats: "{rate} · dérive {ppm} ppm · latence minimale {lag} ms",
+    atZero: "0 ms est le plus tôt possible pour cette sortie : environ {lag} ms après que le son quitte Windows. Si elle semble encore en retard, la source est trop rapide pour elle : choisissez un périphérique plus lent comme source (en général le Bluetooth). Pour des sorties d'une même interface, prenez comme source un périphérique que vous n'écoutez pas (une sortie inutilisée) et ajoutez ici toutes les enceintes : elles suivent alors le même chemin et s'alignent à 0 ms.",
+    rateMismatch: "Cette sortie fonctionne à {out} alors que la source est à {src}. Tandem la convertit proprement, mais régler les deux sur la même fréquence dans Windows évite toute conversion.",
+    openSound: "Ouvrir les paramètres Son",
     underruns: { one: "{n} coupure", other: "{n} coupures" },
   },
   sync: {
@@ -69,6 +72,7 @@ export const fr: Dict = {
     resultLater: "Terminé : cette sortie joue maintenant {delta} ms plus tard ({delay} ms).",
     resultEarlier: "Terminé : cette sortie joue maintenant {delta} ms plus tôt ({delay} ms).",
     resultSame: "Déjà synchronisée ({delay} ms).",
+    resultLimited: "Réglée sur 0 ms, mais cette sortie joue encore {lag} ms après la source. Aucun retard ne peut corriger cela : choisissez un périphérique plus lent comme source, ou une source que vous n'écoutez pas avec toutes les enceintes ajoutées comme sorties.",
     automatic: "Resynchronisée automatiquement après une reconnexion.",
     failure: {
       noMic: "Choisissez d'abord un micro.",
@@ -78,7 +82,6 @@ export const fr: Dict = {
       sourceNotHeard: "Le micro n'a pas entendu le balayage. Montez le volume ou rapprochez le micro.",
       targetNotHeard: "La source a été entendue, mais pas cette sortie. Vérifiez son volume et qu'elle est active.",
       tooShort: "L'enregistrement a été interrompu. Réessayez.",
-      outputSlower: "Cette sortie est à elle seule plus lente que la source : la retarder n'aidera pas. Faites-en plutôt la source.",
       busy: "Une synchro auto est déjà en cours.",
     },
   },

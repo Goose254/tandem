@@ -166,6 +166,17 @@ pub fn start_calibration(app: AppHandle, device_id: String) {
     crate::calibration::spawn(app, device_id, false);
 }
 
+/// Open the classic Windows Sound panel, where each device's sample rate is set
+/// (device > Properties > Advanced).
+#[tauri::command]
+pub fn open_sound_settings() -> Result<(), String> {
+    std::process::Command::new("control")
+        .arg("mmsys.cpl")
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) {
     crate::tray::show_main_window(&app);

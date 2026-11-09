@@ -62,6 +62,9 @@ export type OutputStatus = {
   underruns: number;
   level: number;
   error: string | null;
+  /** How far behind the source this output plays at 0 ms (its minimum path). */
+  minLagMs: number | null;
+  sampleRate: number | null;
 };
 
 export type Snapshot = {
@@ -72,6 +75,7 @@ export type Snapshot = {
     deviceName: string | null;
     level: number;
     error: string | null;
+    sampleRate: number | null;
   };
   outputs: OutputStatus[];
   clicks: boolean;
@@ -86,17 +90,18 @@ export type Failure =
   | "sourceNotHeard"
   | "targetNotHeard"
   | "tooShort"
-  | "outputSlower"
   | "busy";
 
 export type CalibrationEvent = {
   deviceId: string;
-  phase: "listening" | "done" | "failed";
+  /** "limited": set to 0 ms and still `lagMs` late, so the source is too fast for it. */
+  phase: "listening" | "done" | "limited" | "failed";
   pass: number;
   automatic: boolean;
   offsetMs: number | null;
   previousDelayMs: number | null;
   delayMs: number | null;
+  lagMs: number | null;
   failure: Failure | null;
 };
 
@@ -129,6 +134,7 @@ export const ipc = {
   getAutostart: () => invoke<boolean>("get_autostart"),
   setAutostart: (on: boolean) => invoke<boolean>("set_autostart", { on }),
   startCalibration: (deviceId: string) => invoke<void>("start_calibration", { deviceId }),
+  openSoundSettings: () => invoke<void>("open_sound_settings"),
   showMainWindow: () => invoke<void>("show_main_window"),
   hideTrayPopup: () => invoke<void>("hide_tray_popup"),
   quit: () => invoke<void>("quit_app"),
@@ -143,7 +149,8 @@ export async function on<T>(event: string, handler: (payload: T) => void): Promi
   }
 }
 
-export const MIN_DELAY_MS = 30;
+/** Delays sit on top of each output's minimum path, so 0 means "as early as it can play". */
+export const MIN_DELAY_MS = 0;
 export const MAX_DELAY_MS = 2000;
 
 /** The delay an output uses with the given source: remembered per source, else its default. */

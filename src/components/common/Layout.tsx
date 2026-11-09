@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AlertTriangle, Info } from "lucide-react";
 import mark from "../../assets/tandem-mark.svg";
 import styles from "./Layout.module.css";
 
@@ -71,5 +72,16 @@ export function SyncSpinner({ size = 22 }: { size?: number }) {
       <i />
       <i />
     </span>
+  );
+}
+
+/** A quiet inline note: an icon and a line of text, no box. Warn tone for something to fix. */
+export function Notice({ tone = "info", children, action }: { tone?: "info" | "warn"; children: ReactNode; action?: ReactNode }) {
+  return (
+    <div className={`${styles.notice} ${tone === "warn" ? styles.noticeWarn : ""}`}>
+      {tone === "warn" ? <AlertTriangle size={14} /> : <Info size={14} />}
+      <p>{children}</p>
+      {action ? <div className={styles.noticeAction}>{action}</div> : null}
+    </div>
   );
 }

@@ -44,7 +44,10 @@ export const en = {
       idle: "Idle",
       error: "Can't open this device, retrying…",
     },
-    stats: "buffer {buffer} ms · drift {ppm} ppm",
+    stats: "{rate} · drift {ppm} ppm · minimum lag {lag} ms",
+    atZero: "0 ms is as early as this output can play: about {lag} ms after the source leaves Windows. If it still sounds late, the source is too fast for it: choose a slower device as the source (usually the Bluetooth one). For outputs on the same interface, make the source a device you don't listen to (an unused output) and add every speaker here: they then all take the same path and line up at 0 ms.",
+    rateMismatch: "This output runs at {out} while the source runs at {src}. Tandem converts it cleanly, but setting both to the same rate in Windows means no conversion at all.",
+    openSound: "Open Sound settings",
     underruns: { one: "{n} dropout", other: "{n} dropouts" } as Plural,
   },
   sync: {
@@ -70,6 +73,7 @@ export const en = {
     resultLater: "Done: this output now plays {delta} ms later ({delay} ms).",
     resultEarlier: "Done: this output now plays {delta} ms earlier ({delay} ms).",
     resultSame: "Already in sync ({delay} ms).",
+    resultLimited: "Set to 0 ms, but this output still plays {lag} ms after the source. No delay can fix that: choose a slower device as the source, or a source you don't listen to with every speaker added as an output.",
     automatic: "Re-synced automatically after a reconnect.",
     failure: {
       noMic: "Choose a microphone first.",
@@ -79,7 +83,6 @@ export const en = {
       sourceNotHeard: "The microphone didn't hear the test sweep. Turn the volume up or move the mic closer.",
       targetNotHeard: "The source was heard, but not this output. Check its volume and that it's on.",
       tooShort: "The recording was cut short. Try again.",
-      outputSlower: "This output is slower than the source by itself, so delaying it can't help. Make it the source instead.",
       busy: "Another auto-sync is already running.",
     },
   },

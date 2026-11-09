@@ -188,3 +188,34 @@
     width: 92%;
   }
 }
+
+/* -- Notice: icon + text on the ground, tinted only by tone. -- */
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.notice svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--ink-3);
+}
+
+.notice p {
+  flex: 1;
+  margin: 0;
+  max-width: 76ch;
+}
+
+.noticeWarn svg {
+  color: var(--warn);
+}
+
+.noticeAction {
+  flex: none;
+  margin: -6px -12px -6px 0;
+}

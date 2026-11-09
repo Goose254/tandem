@@ -58,6 +58,7 @@ function snapshot(): Snapshot {
       deviceName: devices.outputs[0].name,
       level,
       error: null,
+      sampleRate: settings.enabled ? 48000 : null,
     },
     outputs: settings.outputs.map((o) => {
       const delay = o.delays.yamaha ?? o.defaultDelayMs;
@@ -71,6 +72,8 @@ function snapshot(): Snapshot {
         underruns: 0,
         level: playing ? level * Math.pow(10, o.gainDb / 20) : 0,
         error: null,
+        minLagMs: playing ? 24.3 : null,
+        sampleRate: playing ? (o.device.id === "hdmi" ? 44100 : 48000) : null,
       };
     }),
     clicks,
@@ -126,6 +129,8 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> =
       case "set_output_gain":
         output(a.deviceId)!.gainDb = Math.max(-40, Math.min(12, a.gainDb));
         break;
+      case "open_sound_settings":
+        return undefined;
       case "set_clicks":
         clicks = a.on;
         return undefined;
@@ -137,14 +142,19 @@ export async function mockInvoke<T>(cmd: string, args: Record<string, unknown> =
         calibrating = a.deviceId;
         const o = output(a.deviceId)!;
         const before = o.delays.yamaha ?? o.defaultDelayMs;
-        const base = { deviceId: a.deviceId, automatic: false, offsetMs: null, previousDelayMs: before, delayMs: null, failure: null };
+        const base = { deviceId: a.deviceId, automatic: false, offsetMs: null, previousDelayMs: before, delayMs: null, lagMs: null, failure: null };
         emit("calibration", { ...base, phase: "listening", pass: 1 } satisfies CalibrationEvent);
         setTimeout(() => emit("calibration", { ...base, phase: "listening", pass: 2 }), 2500);
         setTimeout(() => {
           calibrating = null;
-          o.delays.yamaha = before - 12;
-          changed();
-          emit("calibration", { ...base, phase: "done", pass: 2, offsetMs: 12.3, delayMs: before - 12 });
+          // Demo both outcomes: a normal correction, or (at 0 ms already) a limited one.
+          if (before === 0) {
+            emit("calibration", { ...base, phase: "limited", pass: 1, offsetMs: 8.4, delayMs: 0, lagMs: 8.4 });
+          } else {
+            o.delays.yamaha = before - 12;
+            changed();
+            emit("calibration", { ...base, phase: "done", pass: 2, offsetMs: 12.3, delayMs: before - 12 });
+          }
         }, 5000);
         return undefined;
       }

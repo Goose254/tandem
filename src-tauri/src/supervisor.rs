@@ -162,6 +162,7 @@ impl Supervisor {
                 Some(e) if e.source_alive() => {
                     source.state = SourceState::Running;
                     source.level = e.source_level();
+                    source.sample_rate = Some(e.source_format().rate as u32);
                 }
                 _ => {
                     source.state = SourceState::Error;
@@ -290,6 +291,8 @@ impl Supervisor {
                     dto.correction_ppm = st.correction_ppm;
                     dto.underruns = st.underruns;
                     dto.level = st.level;
+                    dto.min_lag_ms = (st.min_lag_ms > 0.0).then_some(st.min_lag_ms);
+                    dto.sample_rate = Some(handle.format().rate as u32);
                 }
                 None => {
                     dto.state = OutputState::Error;

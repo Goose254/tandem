@@ -163,3 +163,7 @@
     grid-template-columns: 1fr;
   }
 }
+
+.rate {
+  color: var(--ink-3);
+}

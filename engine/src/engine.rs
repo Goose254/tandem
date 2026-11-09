@@ -32,10 +32,14 @@ use wasapi::{DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat, in
 use crate::control::{Action, DriftController};
 use crate::devices::Format;
 
-pub const MIN_DELAY_MS: u32 = 30;
+/// Delays are added on top of each output's minimum path (see [`OutputStatus::min_lag_ms`]),
+/// so 0 ms means "as early as this output can play".
+pub const MIN_DELAY_MS: u32 = 0;
 pub const MAX_DELAY_MS: u32 = 2000;
-/// Input frames per resampler call.
-const CHUNK: usize = 256;
+/// Input frames per resampler call. Small, since it adds directly to the minimum lag.
+const CHUNK: usize = 128;
+/// Headroom kept in the FIFO at 0 ms on top of one loopback packet, against scheduling jitter.
+const SAFETY_S: f64 = 0.003;
 /// Level meter fall time constant, in seconds.
 const METER_FALL_S: f32 = 0.35;
 
@@ -72,8 +76,13 @@ pub struct OutputConfig {
 pub struct OutputStatus {
     /// Audio is flowing (not priming after a start or an underrun).
     pub running: bool,
-    /// Smoothed amount of audio buffered between the source and this output.
+    /// Smoothed delay actually applied on top of the minimum path; tracks the requested delay.
     pub buffered_ms: f64,
+    /// The minimum path this output adds after the source's audio leaves Windows: device
+    /// buffer, resampler and one loopback packet. At a delay of 0 ms the output plays roughly
+    /// this much after the source (assuming both devices have similar hardware latency).
+    /// If it still sounds late at 0 ms, the source is too fast for this output.
+    pub min_lag_ms: f64,
     /// Current resampling correction for clock drift, in ppm.
     pub correction_ppm: f64,
     pub underruns: u64,
@@ -101,12 +110,17 @@ struct OutputShared {
 /// A running output. Parameter changes take effect immediately.
 pub struct OutputHandle {
     shared: Arc<OutputShared>,
+    fmt: Format,
     thread: Option<JoinHandle<()>>,
 }
 
 impl OutputHandle {
     pub fn key(&self) -> &str {
         &self.shared.key
+    }
+    /// The device's shared-mode format, which the source is resampled to.
+    pub fn format(&self) -> Format {
+        self.fmt
     }
     pub fn set_delay_ms(&self, ms: u32) {
         self.shared.delay_ms.store(ms.clamp(MIN_DELAY_MS, MAX_DELAY_MS), Relaxed);
@@ -284,7 +298,7 @@ impl Engine {
             })
             .context("spawning render thread")?;
         self.source.outputs.write().unwrap().push(Arc::clone(&shared));
-        self.outputs.push(OutputHandle { shared, thread: Some(thread) });
+        self.outputs.push(OutputHandle { shared, fmt: dst_fmt, thread: Some(thread) });
         Ok(self.outputs.last().unwrap())
     }
 
@@ -477,7 +491,8 @@ fn render_loop(
         .initialize_client(
             &float_format(dst),
             Direction::Render,
-            StreamMode::EventsShared { autoconvert: true, buffer_duration_hns: 2 * period },
+            // One period: the smallest shared-mode buffer, since it adds to the minimum lag.
+            StreamMode::EventsShared { autoconvert: true, buffer_duration_hns: period },
             None,
         )
         .context("opening the output device")?;
@@ -503,6 +518,17 @@ fn render_loop(
     let mut current_gain = 0f32; // fade in from silence
     let mut level = 0f32;
 
+    // The least that can stay buffered without dropouts: the device buffer (refilled every
+    // period), one resampler chunk plus its lookahead, and one loopback packet of capture
+    // jitter. The user's delay is added on top, so 0 ms is the earliest this output can play.
+    let buffer_frames = client.get_buffer_size()? as usize;
+    let floor_s = buffer_frames as f64 / dst.rate as f64
+        + CHUNK as f64 / src.rate as f64
+        + resampler.output_delay() as f64 / dst.rate as f64
+        + period as f64 / 10_000_000.0
+        + SAFETY_S;
+    status.min_lag_ms = floor_s * 1000.0;
+
     let latency = |fifo_len: usize, out_len: usize, padding: u32, rs_delay: usize| {
         (fifo_len / src.channels) as f64 / src.rate as f64
             + ((out_len / src.channels) + padding as usize + rs_delay) as f64 / dst.rate as f64
@@ -512,7 +538,7 @@ fn render_loop(
     while !out.stop.load(Relaxed) && !src_shared.stop.load(Relaxed) {
         let avail = client.get_available_space_in_frames()? as usize;
         let delay_ms = out.delay_ms.load(Relaxed);
-        let target = delay_ms as f64 / 1000.0;
+        let target = floor_s + delay_ms as f64 / 1000.0;
 
         // Delay changed: jump right away so the effect is audible immediately.
         if delay_ms != applied_delay_ms {
@@ -531,11 +557,17 @@ fn render_loop(
         let need = avail * src.channels;
         while out_fifo.len() < need {
             let mut fifo = out.fifo.lock().unwrap();
-            if priming
-                && latency(fifo.len(), out_fifo.len(), padding, resampler.output_delay()) >= target
-            {
-                priming = false;
-                ctl.reset_filter();
+            if priming {
+                let buffered = latency(fifo.len(), out_fifo.len(), padding, resampler.output_delay());
+                if buffered >= target {
+                    // Start exactly on target: trim what priming overshot (it fills in whole
+                    // capture packets), so the drift controller never has to unwind it slowly.
+                    let excess = ((buffered - target) * src.rate as f64) as i64;
+                    let keep = (fifo.len() / src.channels) as i64 - CHUNK as i64;
+                    shift_fifo(&mut fifo, -excess.min(keep.max(0)), src.channels);
+                    priming = false;
+                    ctl.reset_filter();
+                }
             }
             if priming || fifo.len() < in_buf.len() {
                 if !priming {
@@ -600,7 +632,7 @@ fn render_loop(
                     status.resyncs += 1;
                 }
             }
-            status.buffered_ms = ctl.filtered().unwrap_or(measured) * 1000.0;
+            status.buffered_ms = (ctl.filtered().unwrap_or(measured) - floor_s) * 1000.0;
         }
         status.running = !priming;
         status.correction_ppm = ctl.correction_ppm();

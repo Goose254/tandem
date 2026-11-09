@@ -118,6 +118,8 @@ pub struct SourceStatus {
     pub device_name: Option<String>,
     pub level: f32,
     pub error: Option<String>,
+    /// The source device's sample rate while capturing.
+    pub sample_rate: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
@@ -131,6 +133,10 @@ pub struct OutputStatusDto {
     pub underruns: u64,
     pub level: f32,
     pub error: Option<String>,
+    /// How far behind the source this output plays at a delay of 0 ms (its minimum path).
+    pub min_lag_ms: Option<f64>,
+    /// The output device's sample rate while it plays.
+    pub sample_rate: Option<u32>,
 }
 
 #[derive(Debug, Clone, Default, Serialize)]
