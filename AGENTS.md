@@ -137,7 +137,9 @@ Automated checks do not cover real audio hardware, so say what was and was not v
   `src-tauri/src/supervisor.rs` that have to be settled first.
 - **UI in the browser preview:** `npm run dev`, open <http://localhost:1420>. The simulated
   backend has a Bluetooth source and two outputs. Useful switches: `?lang=fr` for French,
+  `?theme=dark` or `?theme=light` to force a theme (the default follows the system),
   `?update=1.2.3` to simulate an available update, `?update=fail` for a failed update check.
+  The demo build (`npm run build:demo`) takes the same switches.
   In the preview, commit typed values with real key presses (type, then Enter).
 - **Engine on real streams, silently:** this machine has virtual devices nobody hears
   ("Steam Streaming Speakers", "Steam Streaming Microphone"). For example:

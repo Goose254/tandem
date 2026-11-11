@@ -27,6 +27,11 @@ const devices: Devices = {
   ],
 };
 
+// Page switches of the preview: `?lang=fr` for French, `?theme=dark` or `?theme=light` to force
+// a theme (an embedding page can then match its own; without it the theme follows the system).
+const params = new URLSearchParams(location.search);
+const wantedTheme = params.get("theme");
+
 const settings: Settings = {
   enabled: true,
   source: { followDefault: true, device: null },
@@ -41,12 +46,11 @@ const settings: Settings = {
   pauseWhenSilent: false,
   autoCheckUpdates: true,
   skippedUpdate: null,
-  theme: "system",
-  locale: (new URLSearchParams(location.search).get("lang") as "en" | "fr") ?? "en",
+  theme: wantedTheme === "dark" || wantedTheme === "light" ? wantedTheme : "system",
+  locale: params.get("lang") === "fr" ? "fr" : "en",
   closeToTray: true,
   startMinimized: true,
 };
-if (settings.locale !== "fr") settings.locale = "en";
 
 let clicks = false;
 let calibrating: string | null = null;

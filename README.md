@@ -183,8 +183,10 @@ cargo test --release   # engine, calibration and settings tests
 
 `npm run build:demo` produces a self-contained demo of the interface: the simulated backend
 instead of Windows audio, and relative asset paths, so `dist-demo/` can be served from any
-sub-path or shown in an `<iframe>` (add `?lang=fr` for French). Nothing in it plays or captures
-sound. The app itself is built with `npm run build`, which leaves the simulated backend out.
+sub-path or shown in an `<iframe>`. Nothing in it plays or captures sound. Like the browser
+preview, it takes switches in the URL: `?lang=fr` for French, `?theme=dark` or `?theme=light` to
+force a theme (it follows the system otherwise), `?update=1.2.3` to show the update card. The
+app itself is built with `npm run build`, which leaves the simulated backend out.
 
 Continuous integration (`.github/workflows/ci.yml`) runs the Rust format check, the UI lint,
 the type-check, the UI build and the Rust tests on every pull request and every push to `main`.
