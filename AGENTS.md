@@ -4,6 +4,9 @@ Notes for anyone (person or coding agent) picking this project up cold. The READ
 what Tandem is for users; this file explains how to work on it without breaking things, and
 records the decisions that are not visible in the code.
 
+- How it works, for a human reader (pipeline, delay, drift control, auto-sync, supervisor,
+  what is and is not verified): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Read it before
+  touching the engine or the supervisor; this file does not repeat it.
 - Publishing a version: [docs/RELEASING.md](docs/RELEASING.md).
 - Checks that need real hardware: [docs/hardware-test.md](docs/hardware-test.md).
 
@@ -17,8 +20,8 @@ delayed so they all sound together, with continuous clock-drift correction.
 |---|---|
 | `engine/` | Rust library `tandem-engine`: WASAPI loopback capture, one render thread per output, drift control, channel mixing, microphone recording, calibration maths. Also the `tandem-cli` test tool (behind the `cli` feature, on by default; the app turns it off). |
 | `src-tauri/` | The desktop app (Tauri 2): supervisor, auto-sync orchestration, settings, tray, commands. |
-| `src/` | The UI: React 19, TypeScript, CSS modules, zustand. `lib/mock.ts` is a simulated backend for the browser preview. |
-| `docs/` | Release runbook, release notes for the next version, hardware checklist. |
+| `src/` | The UI: React 19, TypeScript, CSS modules, zustand. `lib/mock.ts` is a simulated backend for the browser preview and the demo build. |
+| `docs/` | Architecture, release runbook, release notes for the next version, hardware checklist, README images. |
 | `.github/workflows/` | `ci.yml` (pull requests and pushes to `main`) and `release.yml` (on a `v*` tag). |
 
 Key files:
@@ -71,8 +74,9 @@ Requirements: Windows 10 or 11, Rust (MSVC toolchain, edition 2024), Node 20 or 
 **Licensing and naming**
 
 - Tandem is AGPL-3.0-or-later. The design language is adapted from
-  [Plisto](https://github.com/Altervayne/plisto) by the maintainer's brother, also AGPL. The
-  Plisto name and logo are reserved: never use them in Tandem.
+  [Plisto](https://github.com/Altervayne/plisto) by Florian Douay, also AGPL, and is credited
+  in `NOTICE` and the README: keep that credit, and never present the design as original to
+  Tandem. The Plisto name and logo are reserved: never use them in Tandem.
 - New dependencies must be AGPL-compatible; run `npm run licenses` after adding one.
 
 **Design**
@@ -82,26 +86,24 @@ Requirements: Windows 10 or 11, Rust (MSVC toolchain, edition 2024), Node 20 or 
 - Every user-facing string exists in both `src/i18n/en.ts` and `src/i18n/fr.ts` with the same
   keys. The tray menu and tooltip strings are in `src-tauri/src/tray.rs`.
 
-**Audio behaviour worth knowing before changing it**
+**Audio behaviour: the rules to keep** (the reasons are in docs/ARCHITECTURE.md)
 
 - Delays are added on top of each output's minimum path, so 0 ms means "as early as this output
   can play". Outputs can only be delayed, never advanced: the slowest device must be the source.
 - Loopback capture already contains Windows' *software* volume (measured: a device at 90% came
-  through 1.6 dB quieter). A *hardware* volume (most Bluetooth devices) is invisible to
-  loopback, so the engine applies it to the outputs itself when "Volume keys act on every
-  output" is on. Do not apply a software volume a second time.
+  through 1.6 dB quieter). Only a *hardware* volume (most Bluetooth devices) is applied by the
+  engine. Do not apply a software volume a second time.
 - The supervisor must never wait for audio threads while holding the runtime lock: the UI's
   commands share that lock. Things going away are told to stop under the lock and dropped after
   it (`Retired` in `supervisor.rs`).
 - Engine and settings change together under the runtime lock (`apply_delay`,
   `set_output_gain`), and the supervisor reads the settings under the same lock. Lock order is
   always runtime, then settings.
-- Microphone auto-sync mutes every output, plays one sweep from the source alone, then one with
-  the output being synced. With a "Line up with" output chosen, that output stands in for the
-  source.
-- "Pause when nothing plays" closes every stream after two minutes of silence and watches the
-  source's level meter to wake up. It is off by default because the first sound after a pause
-  reaches the outputs late.
+- Auto-sync must restore every output's mute state on every exit path.
+- "Pause when nothing plays" stays off by default: the first sound after a pause reaches the
+  outputs late.
+- The simulated backend (`src/lib/mock.ts`) is loaded by `src/lib/ipc.ts` on demand, in the
+  dev server and the demo build only. Never import it statically: it would ship in the app.
 
 **Settings file**
 
@@ -141,14 +143,15 @@ Automated checks do not cover real audio hardware, so say what was and was not v
   `?update=1.2.3` to simulate an available update, `?update=fail` for a failed update check.
   The demo build (`npm run build:demo`) takes the same switches.
   In the preview, commit typed values with real key presses (type, then Enter).
-- **Engine on real streams, silently:** this machine has virtual devices nobody hears
-  ("Steam Streaming Speakers", "Steam Streaming Microphone"). For example:
+- **Engine on real streams, silently:** use two playback devices nobody hears, for example
+  the virtual ones that a remote-play or virtual-cable driver installs. `tandem-cli list` shows
+  what the machine has; ask the maintainer which ones are safe before picking. For example:
 
   ```bash
-  cargo run --release -p tandem-engine --bin tandem-cli -- run --source "Steam Streaming Speakers" --target "Steam Streaming Microphone" --delay 0 --duration 6
+  cargo run --release -p tandem-engine --bin tandem-cli -- run --source "<silent device A>" --target "<silent device B>" --delay 0 --duration 6
   ```
 
-  Expect "playing" and 0 underruns. `tandem-cli list` shows the devices.
+  Expect "playing" and 0 underruns.
 - **Everything else** (Bluetooth, a real microphone, disconnects, sleep, the tray on other
   taskbar positions): docs/hardware-test.md, run by the maintainer.
 

@@ -71,6 +71,9 @@ Sync by ear has been confirmed on real devices and is the method to rely on mean
                   └── …
 ```
 
+The short version follows; [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the full tour of
+the design, with what is covered by tests and what is only checked on real hardware.
+
 - **Loopback capture** reads the source's mix as it is handed to the device, ahead of the
   Bluetooth link's latency. Every other output gets a copy delayed by the difference.
 - **Keepalive**: Tandem plays inaudible silence on the source, so loopback never stalls during
@@ -227,7 +230,8 @@ cargo run --release -p tandem-engine --bin tandem-cli -- run --target "Main Outp
 |---|---|
 | `engine/` | The audio engine library: devices, capture, per-output render, drift controller, microphone recording, calibration DSP. Plus `tandem-cli`. |
 | `src-tauri/` | The desktop app: supervisor (device reconciliation), auto-sync orchestration, settings, tray, commands. |
-| `src/` | The UI (React + CSS modules). `lib/mock.ts` serves the browser preview. |
+| `src/` | The UI (React + CSS modules). `lib/mock.ts` serves the browser preview and the demo build. |
+| `docs/` | [ARCHITECTURE.md](docs/ARCHITECTURE.md) (how it works), [RELEASING.md](docs/RELEASING.md), [hardware-test.md](docs/hardware-test.md). |
 
 ## License
 
