@@ -148,11 +148,17 @@ cd tandem
 npm install
 npm run tauri dev      # run the app with hot reload
 npm run dev            # UI only, in a browser, with a simulated backend
+npm run build:demo     # the same simulated UI as static files in dist-demo/, for embedding
 npm run release        # build the signed release app, installer and update files (needs the key)
 npm run release:unsigned  # the same without update signing: for local builds and forks
 npm run licenses       # regenerate THIRD_PARTY_LICENSES.md after changing dependencies
 cargo test --release   # engine, calibration and settings tests
 ```
+
+`npm run build:demo` produces a self-contained demo of the interface: the simulated backend
+instead of Windows audio, and relative asset paths, so `dist-demo/` can be served from any
+sub-path or shown in an `<iframe>` (add `?lang=fr` for French). Nothing in it plays or captures
+sound. The app itself is built with `npm run build`, which leaves the simulated backend out.
 
 Continuous integration (`.github/workflows/ci.yml`) runs the type-check, the UI build and the
 tests on every push.

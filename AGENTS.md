@@ -40,7 +40,8 @@ Key files:
 npm install
 npm run dev              # UI only in a browser at http://localhost:1420, simulated backend
 npm run tauri dev        # the real app with hot reload
-npm run build            # type-check and build the UI into dist/
+npm run build            # type-check and build the UI into dist/ (no simulated backend in it)
+npm run build:demo       # the UI with the simulated backend into dist-demo/, for embedding
 cargo test --release     # all Rust tests (the desktop crate needs dist/ to exist: build the UI first)
 npm run release:unsigned # installer without update signing: use this for local testing
 npm run release          # signed installer: needs the private key, see docs/RELEASING.md

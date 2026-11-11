@@ -193,6 +193,17 @@ export function mockListen(event: string, handler: Handler): () => void {
   return () => listeners.get(event)?.delete(handler);
 }
 
+/*
+ * Made-up release notes for the preview's update card. Real notes come from the published
+ * release; these follow the preview's language so a French demo reads as one piece. They are
+ * sample data of the simulation, which is why they live here and not in the i18n dictionaries
+ * (those ship with the app).
+ */
+const PREVIEW_NOTES: Record<Settings["locale"], string> = {
+  en: "- Faster reconnection after a Bluetooth drop\n- Fixes a click when an output starts\n- French wording tweaks",
+  fr: "- Reconnexion plus rapide après une coupure Bluetooth\n- Corrige un clic au démarrage d'une sortie\n- Retouches du texte français",
+};
+
 /**
  * The update check of the preview, answered from the page's `?update=` parameter:
  * `?update=1.2.3` offers that version, `?update=fail` fails the check, nothing means up to date.
@@ -204,7 +215,7 @@ export async function previewUpdate(): Promise<FoundUpdate | null> {
   if (!wanted) return null;
   return {
     version: wanted,
-    notes: "- Faster reconnection after a Bluetooth drop\n- Fixes a click when an output starts\n- French wording tweaks",
+    notes: PREVIEW_NOTES[settings.locale],
     install: async (onProgress) => {
       for (let i = 0; i <= 20; i++) {
         onProgress(i / 20);
