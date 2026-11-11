@@ -150,7 +150,8 @@ Rules:
 
 10. **Verify from an installed older version**: Settings > Updates > Check for updates should
     offer the new version; Update now should download, install and restart on the new version
-    with settings intact.
+    with settings intact. This is the only check of the whole update path (feed, signature,
+    installer, restart): nothing automated covers it. Record the outcome in History.
 
 ## Building locally
 
@@ -215,4 +216,4 @@ deletes that release on GitHub first; otherwise use a higher version instead.
 | 1.0.0 | First build. Tagged; its release stayed a draft and was never published. No updater. |
 | 1.0.1 | Twenty audit fixes, the three-note icon, in-app updates. Tagged, but its run failed at the last step and created no release: with `releaseDraft: true`, GitHub refused the create-release call ("Resource not accessible by integration"). |
 | 1.0.2 | Same code as 1.0.1 plus the documentation. First published release, and the first built by the workflow that publishes on its own. |
-| 1.0.3 | The boxes grow with the window; the update card's buttons fit and the card is never see-through. First release that installed copies (1.0.2) can update to. |
+| 1.0.3 | The boxes grow with the window; the update card's buttons fit and the card is never see-through. First release that installed copies (1.0.2) are offered as an update. That update has not yet been confirmed end to end (checklist step 10): note the result here once it has been run. |

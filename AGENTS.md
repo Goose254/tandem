@@ -164,7 +164,8 @@ Known gaps:
   plays" have not been confirmed on real hardware. Sync by ear has, and works well.
 - The installer is not code-signed, so SmartScreen warns on first run. That needs a paid
   certificate.
-- An in-app update has not yet been exercised end to end from one published release to the
-  next.
+- An in-app update has not yet been confirmed end to end. 1.0.3 is the first release that an
+  installed copy (1.0.2) is offered, so it is the first chance to do it: docs/RELEASING.md,
+  checklist step 10, with the result noted in its History table.
 - The busy spinner still shows the old logo's bars.
 - `IAudioClient3` low-latency shared mode could shrink the minimum lag; untested.

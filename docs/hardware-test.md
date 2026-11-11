@@ -1,7 +1,9 @@
 # Hardware test checklist
 
-The engine's maths and the UI are covered by automated tests and a simulated backend. What
-those cannot cover is real hardware: a Bluetooth link, a real microphone, a real disconnect.
+The engine's maths (calibration analysis, drift controller, channel mixing) and the settings
+file are covered by automated tests (`cargo test`). The UI has no automated tests: it is
+type-checked and linted, and reviewed by hand against a simulated backend (`npm run dev`).
+None of that can cover real hardware: a Bluetooth link, a real microphone, a real disconnect.
 This is the list to run through with the actual devices. Each step says what to expect, so a
 miss is easy to report (open an issue with the step number and what happened instead).
 
