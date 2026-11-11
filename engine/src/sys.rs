@@ -77,7 +77,11 @@ impl EndpointVolume {
             if !self.hardware_volume {
                 return 1.0;
             }
-            if self.volume.GetMasterVolumeLevelScalar().is_ok_and(|s| s <= 0.0) {
+            if self
+                .volume
+                .GetMasterVolumeLevelScalar()
+                .is_ok_and(|s| s <= 0.0)
+            {
                 return 0.0;
             }
             match self.volume.GetMasterVolumeLevel() {

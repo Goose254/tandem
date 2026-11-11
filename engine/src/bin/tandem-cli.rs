@@ -57,7 +57,14 @@ fn run() -> Result<()> {
     let _ = wasapi::initialize_mta();
     match cli.cmd {
         Cmd::List => list(),
-        Cmd::Run { source, target, delay, gain_db, clicks, duration } => {
+        Cmd::Run {
+            source,
+            target,
+            delay,
+            gain_db,
+            clicks,
+            duration,
+        } => {
             let src = devices::find(source.as_deref())?;
             let dst = devices::find(Some(&target))?;
             if src.id == dst.id {
@@ -68,7 +75,11 @@ fn run() -> Result<()> {
             println!("source: {} ({source_fmt})", src.name);
             println!("target: {} ({target_fmt})", dst.name);
 
-            let mut engine = Engine::start(SourceConfig { device_id: src.id.clone(), fmt: source_fmt, follow_volume: true })?;
+            let mut engine = Engine::start(SourceConfig {
+                device_id: src.id.clone(),
+                fmt: source_fmt,
+                follow_volume: true,
+            })?;
             engine.set_clicks(clicks);
             engine.add_output(OutputConfig {
                 key: dst.id.clone(),
@@ -137,7 +148,11 @@ fn timed_run(engine: &Engine, key: &str, seconds: u64) -> Result<()> {
     let start = Instant::now();
     while alive(engine, key) && start.elapsed() < Duration::from_secs(seconds) {
         std::thread::sleep(Duration::from_secs(1));
-        println!("[{:>4}s] {}", start.elapsed().as_secs(), status_line(engine, key));
+        println!(
+            "[{:>4}s] {}",
+            start.elapsed().as_secs(),
+            status_line(engine, key)
+        );
     }
     Ok(())
 }

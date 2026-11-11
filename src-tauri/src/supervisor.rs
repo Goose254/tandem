@@ -73,7 +73,11 @@ fn publish_levels(app: &AppHandle) {
     };
     let levels = Levels {
         source: engine.source_level(),
-        outputs: engine.outputs().iter().map(|o| (o.key().to_string(), o.status().level)).collect(),
+        outputs: engine
+            .outputs()
+            .iter()
+            .map(|o| (o.key().to_string(), o.status().level))
+            .collect(),
     };
     drop(rt);
     let _ = app.emit("levels", &levels);
@@ -195,7 +199,10 @@ impl Supervisor {
         // both the engine and the settings, so this copy can never be older than the engine.
         let settings = state.settings();
         let can_resync = settings.resync_on_reconnect
-            && settings.mic.as_ref().is_some_and(|m| resolve(&devices.inputs, m).is_some());
+            && settings
+                .mic
+                .as_ref()
+                .is_some_and(|m| resolve(&devices.inputs, m).is_some());
         let may_resync = can_resync
             && now - self.started_at > STARTUP_GRACE
             && self.no_resync_until.is_none_or(|t| now >= t);
@@ -204,7 +211,11 @@ impl Supervisor {
         let source_dev = if settings.source.follow_default {
             devices.outputs.iter().find(|d| d.is_default)
         } else {
-            settings.source.device.as_ref().and_then(|r| resolve(&devices.outputs, r))
+            settings
+                .source
+                .device
+                .as_ref()
+                .and_then(|r| resolve(&devices.outputs, r))
         };
         let mut source = SourceStatus::default();
 
@@ -250,7 +261,8 @@ impl Supervisor {
                 self.meter = None;
             }
 
-            if rt.engine.is_none() && !self.paused && self.source_retry_at.is_none_or(|t| now >= t) {
+            if rt.engine.is_none() && !self.paused && self.source_retry_at.is_none_or(|t| now >= t)
+            {
                 let started = mix_format(&dev.id).and_then(|fmt| {
                     Engine::start(SourceConfig {
                         device_id: dev.id.clone(),
@@ -270,7 +282,8 @@ impl Supervisor {
                         // A (re)connected source changes the path latency: re-sync everything.
                         if may_resync && self.no_resync_until.is_none_or(|t| now >= t) {
                             for o in settings.outputs.iter().filter(|o| o.enabled) {
-                                self.pending_resync.insert(o.device.id.clone(), now + RESYNC_SETTLE);
+                                self.pending_resync
+                                    .insert(o.device.id.clone(), now + RESYNC_SETTLE);
                             }
                         }
                     }
@@ -308,7 +321,11 @@ impl Supervisor {
         let current_source = source_dev.map(|d| d.id.clone());
         let mut id_updates: Vec<(String, DeviceRef)> = Vec::new();
         let mut outputs = Vec::new();
-        let wanted_keys: HashSet<&str> = settings.outputs.iter().map(|o| o.device.id.as_str()).collect();
+        let wanted_keys: HashSet<&str> = settings
+            .outputs
+            .iter()
+            .map(|o| o.device.id.as_str())
+            .collect();
         // Device ids that already belong to an output, including ones adopted in this pass.
         let mut claimed: HashSet<String> = wanted_keys.iter().map(|k| k.to_string()).collect();
 
@@ -341,7 +358,13 @@ impl Supervisor {
             {
                 // The device came back under a new id (e.g. Bluetooth re-pairing): adopt it.
                 claimed.insert(dev.id.clone());
-                id_updates.push((key.clone(), DeviceRef { id: dev.id.clone(), name: dev.name.clone() }));
+                id_updates.push((
+                    key.clone(),
+                    DeviceRef {
+                        id: dev.id.clone(),
+                        name: dev.name.clone(),
+                    },
+                ));
             }
 
             let wanted_state = if !o.enabled {
@@ -419,7 +442,11 @@ impl Supervisor {
                     }
                     handle.set_gain_db(o.gain_db);
                     let st = handle.status();
-                    dto.state = if st.running { OutputState::Playing } else { OutputState::Buffering };
+                    dto.state = if st.running {
+                        OutputState::Playing
+                    } else {
+                        OutputState::Buffering
+                    };
                     dto.buffered_ms = st.buffered_ms;
                     dto.correction_ppm = st.correction_ppm;
                     dto.underruns = st.underruns;
@@ -460,7 +487,9 @@ impl Supervisor {
                 .iter()
                 .find(|(id, at)| {
                     now >= **at
-                        && outputs.iter().any(|o| &o.device_id == *id && o.state == OutputState::Playing)
+                        && outputs
+                            .iter()
+                            .any(|o| &o.device_id == *id && o.state == OutputState::Playing)
                 })
                 .map(|(id, _)| id.clone());
             if let Some(id) = due {
@@ -481,7 +510,10 @@ impl Supervisor {
             calibrating,
             update: state.update_notice.lock().unwrap().clone(),
         };
-        let tray = (snapshot.is_active(), crate::tray::tooltip(&snapshot, &settings));
+        let tray = (
+            snapshot.is_active(),
+            crate::tray::tooltip(&snapshot, &settings),
+        );
         if self.last_tray.as_ref() != Some(&tray) {
             crate::tray::update(app, tray.0, &tray.1, settings.enabled);
             self.last_tray = Some(tray);
@@ -496,17 +528,27 @@ mod tests {
     use super::*;
 
     fn dev(id: &str, name: &str) -> DeviceDto {
-        DeviceDto { id: id.into(), name: name.into(), is_default: false }
+        DeviceDto {
+            id: id.into(),
+            name: name.into(),
+            is_default: false,
+        }
     }
 
     fn wanted(id: &str, name: &str) -> DeviceRef {
-        DeviceRef { id: id.into(), name: name.into() }
+        DeviceRef {
+            id: id.into(),
+            name: name.into(),
+        }
     }
 
     #[test]
     fn a_device_is_found_by_id_before_name() {
         let connected = [dev("new", "Amp"), dev("old", "Amp")];
-        assert_eq!(resolve(&connected, &wanted("old", "Amp")).unwrap().id, "old");
+        assert_eq!(
+            resolve(&connected, &wanted("old", "Amp")).unwrap().id,
+            "old"
+        );
     }
 
     #[test]
@@ -518,9 +560,18 @@ mod tests {
 
     #[test]
     fn device_errors_are_sorted_into_kinds() {
-        assert_eq!(error_kind("opening the output device: in use (0x8889000A)"), "inUse");
-        assert_eq!(error_kind("The device was removed (0x88890004)"), "invalidated");
-        assert_eq!(error_kind("the output device stopped responding"), "stalled");
+        assert_eq!(
+            error_kind("opening the output device: in use (0x8889000A)"),
+            "inUse"
+        );
+        assert_eq!(
+            error_kind("The device was removed (0x88890004)"),
+            "invalidated"
+        );
+        assert_eq!(
+            error_kind("the output device stopped responding"),
+            "stalled"
+        );
         assert_eq!(error_kind("something else"), "other");
     }
 }

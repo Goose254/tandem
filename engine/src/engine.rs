@@ -24,8 +24,8 @@ use std::time::Duration;
 use anyhow::{Context, Result, anyhow};
 use audioadapter_buffers::direct::InterleavedSlice;
 use rubato::{
-    Adjustable, Async, FixedAsync, Resampler, SincInterpolationParameters,
-    SincInterpolationType, WindowFunction,
+    Adjustable, Async, FixedAsync, Resampler, SincInterpolationParameters, SincInterpolationType,
+    WindowFunction,
 };
 use wasapi::{DeviceEnumerator, Direction, SampleType, StreamMode, WaveFormat, initialize_mta};
 
@@ -131,7 +131,9 @@ impl OutputHandle {
         self.fmt
     }
     pub fn set_delay_ms(&self, ms: u32) {
-        self.shared.delay_ms.store(ms.clamp(MIN_DELAY_MS, MAX_DELAY_MS), Relaxed);
+        self.shared
+            .delay_ms
+            .store(ms.clamp(MIN_DELAY_MS, MAX_DELAY_MS), Relaxed);
     }
     pub fn delay_ms(&self) -> u32 {
         self.shared.delay_ms.load(Relaxed)
@@ -251,7 +253,11 @@ impl Engine {
                     .context("spawning source thread")?,
             );
         }
-        Ok(Self { source, threads, outputs: Vec::new() })
+        Ok(Self {
+            source,
+            threads,
+            outputs: Vec::new(),
+        })
     }
 
     pub fn source_format(&self) -> Format {
@@ -296,7 +302,12 @@ impl Engine {
 
     /// Queue a mono signal (at the source rate) to play on the source device.
     pub fn play_signal(&self, signal: Arc<Vec<f32>>) {
-        self.source.injection.lock().unwrap().queue.push_back(signal);
+        self.source
+            .injection
+            .lock()
+            .unwrap()
+            .queue
+            .push_back(signal);
     }
 
     /// Source-clock frame index where each signal queued by [`Engine::play_signal`] started.
@@ -333,13 +344,25 @@ impl Engine {
                 out.finished.store(true, Relaxed);
             })
             .context("spawning render thread")?;
-        self.source.outputs.write().unwrap().push(Arc::clone(&shared));
-        self.outputs.push(OutputHandle { shared, fmt: dst_fmt, thread: Some(thread) });
+        self.source
+            .outputs
+            .write()
+            .unwrap()
+            .push(Arc::clone(&shared));
+        self.outputs.push(OutputHandle {
+            shared,
+            fmt: dst_fmt,
+            thread: Some(thread),
+        });
         Ok(self.outputs.last().unwrap())
     }
 
     pub fn remove_output(&mut self, key: &str) {
-        self.source.outputs.write().unwrap().retain(|o| o.key != key);
+        self.source
+            .outputs
+            .write()
+            .unwrap()
+            .retain(|o| o.key != key);
         // Dropping the handle stops and joins its thread.
         self.outputs.retain(|o| o.key() != key);
     }
@@ -347,7 +370,11 @@ impl Engine {
     /// Detach an output and ask it to stop, without waiting for its thread: the caller drops
     /// the handle where blocking is fine (a thread on a vanished device can take a second).
     pub fn take_output(&mut self, key: &str) -> Option<OutputHandle> {
-        self.source.outputs.write().unwrap().retain(|o| o.key != key);
+        self.source
+            .outputs
+            .write()
+            .unwrap()
+            .retain(|o| o.key != key);
         let i = self.outputs.iter().position(|o| o.key() == key)?;
         let handle = self.outputs.swap_remove(i);
         handle.signal_stop();
@@ -422,14 +449,18 @@ fn keepalive_loop(src: &SourceShared, device_id: &str) -> Result<()> {
         .initialize_client(
             &float_format(fmt),
             Direction::Render,
-            StreamMode::EventsShared { autoconvert: true, buffer_duration_hns: period },
+            StreamMode::EventsShared {
+                autoconvert: true,
+                buffer_duration_hns: period,
+            },
             None,
         )
         .context("opening the source device for playback")?;
     let event = client.set_get_eventhandle()?;
     let render = client.get_audiorenderclient()?;
     let volume = EndpointVolume::open(&dev).ok();
-    src.hardware_volume.store(volume.as_ref().is_some_and(|v| v.is_hardware()), Relaxed);
+    src.hardware_volume
+        .store(volume.as_ref().is_some_and(|v| v.is_hardware()), Relaxed);
     let mut periods: u32 = 0;
     let mut frame: u64 = 0;
     let mut buf = Vec::new();
@@ -455,7 +486,11 @@ fn keepalive_loop(src: &SourceShared, device_id: &str) -> Result<()> {
                 inj.started_at.push(now);
                 inj.playing = Some((sig, 0));
             }
-            let mut s = if clicks { click_sample(now, fmt.rate) } else { 0.0 };
+            let mut s = if clicks {
+                click_sample(now, fmt.rate)
+            } else {
+                0.0
+            };
             if let Some((sig, pos)) = inj.playing.as_mut() {
                 s += sig[*pos];
                 *pos += 1;
@@ -488,7 +523,10 @@ fn capture_loop(src: &SourceShared, device_id: &str) -> Result<()> {
         .initialize_client(
             &float_format(fmt),
             Direction::Capture,
-            StreamMode::PollingShared { autoconvert: true, buffer_duration_hns: 4 * period },
+            StreamMode::PollingShared {
+                autoconvert: true,
+                buffer_duration_hns: 4 * period,
+            },
             None,
         )
         .context("opening loopback capture")?;
@@ -570,7 +608,10 @@ fn render_loop(
             &float_format(dst),
             Direction::Render,
             // One period: the smallest shared-mode buffer, since it adds to the minimum lag.
-            StreamMode::EventsShared { autoconvert: true, buffer_duration_hns: period },
+            StreamMode::EventsShared {
+                autoconvert: true,
+                buffer_duration_hns: period,
+            },
             None,
         )
         .context("opening the output device")?;
@@ -581,8 +622,14 @@ fn render_loop(
         .oversampling_factor(256)
         .interpolation(SincInterpolationType::Quadratic);
     let nominal_ratio = dst.rate as f64 / src.rate as f64;
-    let mut resampler =
-        Async::<f32>::new_sinc(nominal_ratio, 1.1, &params, CHUNK, src.channels, FixedAsync::Input)?;
+    let mut resampler = Async::<f32>::new_sinc(
+        nominal_ratio,
+        1.1,
+        &params,
+        CHUNK,
+        src.channels,
+        FixedAsync::Input,
+    )?;
     let out_max = resampler.output_frames_max();
     let mut in_buf = vec![0f32; CHUNK * src.channels];
     let mut out_buf = vec![0f32; out_max * src.channels];
@@ -637,7 +684,12 @@ fn render_loop(
         while out_fifo.len() < need {
             let mut fifo = out.fifo.lock().unwrap();
             if priming {
-                let buffered = latency(fifo.len(), out_fifo.len(), padding, resampler.output_delay());
+                let buffered = latency(
+                    fifo.len(),
+                    out_fifo.len(),
+                    padding,
+                    resampler.output_delay(),
+                );
                 if buffered >= target {
                     // Start exactly on target: trim what priming overshot (it fills in whole
                     // capture packets), so the drift controller never has to unwind it slowly.
@@ -680,7 +732,11 @@ fn render_loop(
             f32::from_bits(out.gain.load(Relaxed))
                 * f32::from_bits(src_shared.volume_gain.load(Relaxed))
         };
-        let gain_step = if avail > 0 { (target_gain - current_gain) / avail as f32 } else { 0.0 };
+        let gain_step = if avail > 0 {
+            (target_gain - current_gain) / avail as f32
+        } else {
+            0.0
+        };
         let mut peak = 0f32;
         bytes.clear();
         let pcm: &[f32] = out_fifo.make_contiguous();
@@ -735,9 +791,15 @@ mod tests {
     fn shifting_a_fifo_inserts_silence_or_drops_whole_frames() {
         let mut fifo: VecDeque<f32> = (1..=8).map(|v| v as f32).collect();
         shift_fifo(&mut fifo, 1, 2);
-        assert_eq!(fifo.iter().copied().collect::<Vec<_>>(), [0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+        assert_eq!(
+            fifo.iter().copied().collect::<Vec<_>>(),
+            [0.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+        );
         shift_fifo(&mut fifo, -2, 2);
-        assert_eq!(fifo.iter().copied().collect::<Vec<_>>(), [3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+        assert_eq!(
+            fifo.iter().copied().collect::<Vec<_>>(),
+            [3.0, 4.0, 5.0, 6.0, 7.0, 8.0]
+        );
         // Dropping more than there is empties it without panicking.
         shift_fifo(&mut fifo, -100, 2);
         assert!(fifo.is_empty());
@@ -761,7 +823,9 @@ mod tests {
     #[test]
     fn clicks_are_one_short_blip_per_second() {
         let rate = 48_000;
-        let loud = (0..rate as u64 * 2).filter(|f| click_sample(*f, rate).abs() > 0.01).count();
+        let loud = (0..rate as u64 * 2)
+            .filter(|f| click_sample(*f, rate).abs() > 0.01)
+            .count();
         // Two blips of 4 ms each, minus the zero crossings.
         assert!(loud > 0 && loud < 2 * rate * 4 / 1000);
         assert_eq!(click_sample(rate as u64 / 2, rate), 0.0);

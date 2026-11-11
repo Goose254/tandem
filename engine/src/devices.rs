@@ -31,8 +31,14 @@ fn list(direction: Direction) -> Result<Vec<DeviceInfo>> {
         // A device that cannot say who it is (a half-removed driver, a virtual device in a
         // bad state) is skipped: it must not hide every other device.
         let Ok(dev) = dev else { continue };
-        let (Ok(id), Ok(name)) = (dev.get_id(), dev.get_friendlyname()) else { continue };
-        out.push(DeviceInfo { is_default: Some(&id) == default_id.as_ref(), name, id });
+        let (Ok(id), Ok(name)) = (dev.get_id(), dev.get_friendlyname()) else {
+            continue;
+        };
+        out.push(DeviceInfo {
+            is_default: Some(&id) == default_id.as_ref(),
+            name,
+            id,
+        });
     }
     Ok(out)
 }

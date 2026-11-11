@@ -31,7 +31,10 @@ pub struct SourceSetting {
 
 impl Default for SourceSetting {
     fn default() -> Self {
-        Self { follow_default: true, device: None }
+        Self {
+            follow_default: true,
+            device: None,
+        }
     }
 }
 
@@ -135,7 +138,11 @@ impl Default for Settings {
 
 fn default_locale() -> String {
     let lang = std::env::var("LANG").unwrap_or_default().to_lowercase();
-    if lang.starts_with("fr") || sys_locale_is_french() { "fr".into() } else { "en".into() }
+    if lang.starts_with("fr") || sys_locale_is_french() {
+        "fr".into()
+    } else {
+        "en".into()
+    }
 }
 
 #[cfg(windows)]
@@ -167,7 +174,10 @@ impl Settings {
         match serde_json::from_str::<Self>(&text) {
             Ok(mut settings) => {
                 if settings.version > SETTINGS_VERSION {
-                    let _ = fs::copy(&path, dir.join(format!("settings.v{}.json", settings.version)));
+                    let _ = fs::copy(
+                        &path,
+                        dir.join(format!("settings.v{}.json", settings.version)),
+                    );
                 }
                 // Versions 0 and 1 share one layout: nothing to migrate yet.
                 settings.version = SETTINGS_VERSION;
@@ -184,7 +194,10 @@ impl Settings {
     pub fn save(&self, dir: &Path) -> std::io::Result<()> {
         fs::create_dir_all(dir)?;
         let tmp = dir.join("settings.json.tmp");
-        fs::write(&tmp, serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?)?;
+        fs::write(
+            &tmp,
+            serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?,
+        )?;
         fs::rename(tmp, Self::path(dir))
     }
 
@@ -210,7 +223,10 @@ mod tests {
 
     #[test]
     fn old_or_partial_files_still_load() {
-        let s: Settings = serde_json::from_str(r#"{"enabled":false,"outputs":[{"device":{"id":"a","name":"A"}}]}"#).unwrap();
+        let s: Settings = serde_json::from_str(
+            r#"{"enabled":false,"outputs":[{"device":{"id":"a","name":"A"}}]}"#,
+        )
+        .unwrap();
         assert!(!s.enabled);
         assert_eq!(s.outputs[0].default_delay_ms, DEFAULT_DELAY_MS);
         assert!(s.close_to_tray);
@@ -226,7 +242,10 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("settings.json"), "{ not json").unwrap();
         assert_eq!(Settings::load(&dir), Settings::default());
-        assert_eq!(fs::read_to_string(dir.join("settings.unreadable.json")).unwrap(), "{ not json");
+        assert_eq!(
+            fs::read_to_string(dir.join("settings.unreadable.json")).unwrap(),
+            "{ not json"
+        );
         let _ = fs::remove_dir_all(dir);
     }
 
@@ -234,7 +253,11 @@ mod tests {
     fn a_file_from_a_newer_version_is_kept_aside() {
         let dir = std::env::temp_dir().join(format!("tandem-test-new-{}", std::process::id()));
         fs::create_dir_all(&dir).unwrap();
-        fs::write(dir.join("settings.json"), r#"{"version":99,"enabled":false}"#).unwrap();
+        fs::write(
+            dir.join("settings.json"),
+            r#"{"version":99,"enabled":false}"#,
+        )
+        .unwrap();
         let s = Settings::load(&dir);
         assert!(!s.enabled);
         assert_eq!(s.version, SETTINGS_VERSION);
@@ -246,7 +269,10 @@ mod tests {
     fn save_then_load_round_trips() {
         let dir = std::env::temp_dir().join(format!("tandem-test-{}", std::process::id()));
         let mut s = Settings::default();
-        s.outputs.push(OutputSetting { gain_db: -3.0, ..Default::default() });
+        s.outputs.push(OutputSetting {
+            gain_db: -3.0,
+            ..Default::default()
+        });
         s.save(&dir).unwrap();
         assert_eq!(Settings::load(&dir), s);
         let _ = fs::remove_dir_all(dir);

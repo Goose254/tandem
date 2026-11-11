@@ -31,15 +31,30 @@ struct Labels {
 
 fn labels(locale: &str) -> Labels {
     if locale == "fr" {
-        Labels { mirroring: "Recopie active", show: "Afficher Tandem", quit: "Quitter" }
+        Labels {
+            mirroring: "Recopie active",
+            show: "Afficher Tandem",
+            quit: "Quitter",
+        }
     } else {
-        Labels { mirroring: "Mirroring", show: "Show Tandem", quit: "Quit" }
+        Labels {
+            mirroring: "Mirroring",
+            show: "Show Tandem",
+            quit: "Quit",
+        }
     }
 }
 
 fn build_menu(app: &AppHandle, settings: &Settings) -> tauri::Result<Menu<tauri::Wry>> {
     let l = labels(&settings.locale);
-    let mirroring = CheckMenuItem::with_id(app, "mirroring", l.mirroring, true, settings.enabled, None::<&str>)?;
+    let mirroring = CheckMenuItem::with_id(
+        app,
+        "mirroring",
+        l.mirroring,
+        true,
+        settings.enabled,
+        None::<&str>,
+    )?;
     let show = MenuItem::with_id(app, "show", l.show, true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", l.quit, true, None::<&str>)?;
@@ -104,7 +119,11 @@ pub fn update(app: &AppHandle, active: bool, tooltip: &str, _enabled: bool) {
 /// A one-line summary for the tray tooltip.
 pub fn tooltip(snap: &Snapshot, settings: &Settings) -> String {
     let fr = settings.locale == "fr";
-    let playing = snap.outputs.iter().filter(|o| o.state == OutputState::Playing).count();
+    let playing = snap
+        .outputs
+        .iter()
+        .filter(|o| o.state == OutputState::Playing)
+        .count();
     let line = match snap.source.state {
         SourceState::Off => (if fr { "En pause" } else { "Paused" }).to_string(),
         SourceState::Waiting => match &snap.source.device_name {
@@ -113,11 +132,24 @@ pub fn tooltip(snap: &Snapshot, settings: &Settings) -> String {
             None if fr => "En attente de la source".into(),
             None => "Waiting for the source".into(),
         },
-        SourceState::Error => (if fr { "Source indisponible" } else { "Source unavailable" }).to_string(),
-        SourceState::Paused => (if fr { "En veille, rien ne joue" } else { "Asleep, nothing is playing" }).to_string(),
-        SourceState::Running if playing == 0 => {
-            (if fr { "Aucune sortie active" } else { "No active output" }).to_string()
-        }
+        SourceState::Error => (if fr {
+            "Source indisponible"
+        } else {
+            "Source unavailable"
+        })
+        .to_string(),
+        SourceState::Paused => (if fr {
+            "En veille, rien ne joue"
+        } else {
+            "Asleep, nothing is playing"
+        })
+        .to_string(),
+        SourceState::Running if playing == 0 => (if fr {
+            "Aucune sortie active"
+        } else {
+            "No active output"
+        })
+        .to_string(),
         SourceState::Running => match (fr, playing) {
             (true, 1) => "1 sortie synchronisée".into(),
             (true, n) => format!("{n} sorties synchronisées"),
@@ -181,8 +213,16 @@ fn position_popup(app: &AppHandle, window: &WebviewWindow, click: PhysicalPositi
     let (left, top) = (area.position.x, area.position.y);
     let (right, bottom) = (left + area.size.width as i32, top + area.size.height as i32);
     let (w, h) = (size.width as i32, size.height as i32);
-    let x = if click.x >= (left + right) as f64 / 2.0 { right - w - margin } else { left + margin };
-    let y = if click.y >= (top + bottom) as f64 / 2.0 { bottom - h - margin } else { top + margin };
+    let x = if click.x >= (left + right) as f64 / 2.0 {
+        right - w - margin
+    } else {
+        left + margin
+    };
+    let y = if click.y >= (top + bottom) as f64 / 2.0 {
+        bottom - h - margin
+    } else {
+        top + margin
+    };
     let _ = window.set_position(PhysicalPosition::new(x.max(left), y.max(top)));
 }
 
@@ -232,7 +272,11 @@ const HEAD_TILT: f32 = -0.419;
 const DOT_RADIUS: f32 = 0.062;
 
 fn hex(c: u32) -> Rgb {
-    [((c >> 16) & 0xff) as f32, ((c >> 8) & 0xff) as f32, (c & 0xff) as f32]
+    [
+        ((c >> 16) & 0xff) as f32,
+        ((c >> 8) & 0xff) as f32,
+        (c & 0xff) as f32,
+    ]
 }
 
 fn distance(a: Point, b: Point) -> f32 {
@@ -266,7 +310,12 @@ fn arc_sd(p: Point, from: f32, to: f32, half: f32) -> f32 {
     if angle <= to {
         return (distance(p, CENTRE) - RING_RADIUS).abs() - half;
     }
-    let end = |a: f32| (CENTRE.0 + RING_RADIUS * a.cos(), CENTRE.1 + RING_RADIUS * a.sin());
+    let end = |a: f32| {
+        (
+            CENTRE.0 + RING_RADIUS * a.cos(),
+            CENTRE.1 + RING_RADIUS * a.sin(),
+        )
+    };
     distance(p, end(from)).min(distance(p, end(to))) - half
 }
 
@@ -281,7 +330,11 @@ fn note_sd(p: Point) -> f32 {
 pub fn draw_icon(size: u32, active: bool) -> Image<'static> {
     let s = size as f32;
     // One note per third of a turn: (color from, color to).
-    let notes: [(u32, u32); 3] = [(0x1e9cc0, 0x6bbed5), (0x54b24c, 0x8ecc89), (0x7a56d0, 0xa78fe0)];
+    let notes: [(u32, u32); 3] = [
+        (0x1e9cc0, 0x6bbed5),
+        (0x54b24c, 0x8ecc89),
+        (0x7a56d0, 0xa78fe0),
+    ];
     let dot = hex(0xf2a81e);
     let grey = hex(0x8c8c98);
 
@@ -301,11 +354,18 @@ pub fn draw_icon(size: u32, active: bool) -> Image<'static> {
                 // Rotate the pixel back by this note's turn instead of rotating the note.
                 let (sin, cos) = (k as f32 * std::f32::consts::TAU / 3.0).sin_cos();
                 let (dx, dy) = (p.0 - CENTRE.0, p.1 - CENTRE.1);
-                let local = (CENTRE.0 + dx * cos + dy * sin, CENTRE.1 - dx * sin + dy * cos);
+                let local = (
+                    CENTRE.0 + dx * cos + dy * sin,
+                    CENTRE.1 - dx * sin + dy * cos,
+                );
                 let coverage = (0.5 - note_sd(local) * s).clamp(0.0, 1.0);
                 let t = ((local.0 - 0.3) / 0.6).clamp(0.0, 1.0);
                 let (a0, a1) = (hex(*c0), hex(*c1));
-                let c = if active { [0, 1, 2].map(|i| a0[i] + (a1[i] - a0[i]) * t) } else { grey };
+                let c = if active {
+                    [0, 1, 2].map(|i| a0[i] + (a1[i] - a0[i]) * t)
+                } else {
+                    grey
+                };
                 paint(coverage, c);
             }
             let coverage = (0.5 - (distance(p, CENTRE) - DOT_RADIUS) * s).clamp(0.0, 1.0);
@@ -336,9 +396,16 @@ mod tests {
             for px in image.rgba().chunks_exact(4) {
                 // Composite over a dark taskbar grey.
                 let a = px[3] as f32 / 255.0;
-                ppm.extend(px[..3].iter().map(|c| (*c as f32 * a + 32.0 * (1.0 - a)) as u8));
+                ppm.extend(
+                    px[..3]
+                        .iter()
+                        .map(|c| (*c as f32 * a + 32.0 * (1.0 - a)) as u8),
+                );
             }
-            let name = format!("tandem-tray-{size}-{}.ppm", if active { "on" } else { "off" });
+            let name = format!(
+                "tandem-tray-{size}-{}.ppm",
+                if active { "on" } else { "off" }
+            );
             std::fs::write(std::env::temp_dir().join(name), ppm).unwrap();
         }
     }

@@ -31,7 +31,9 @@ fn layout(channels: usize) -> Vec<Role> {
         4 => &[FrontLeft, FrontRight, BackLeft, BackRight],
         5 => &[FrontLeft, FrontRight, Centre, BackLeft, BackRight],
         6 | 7 => &[FrontLeft, FrontRight, Centre, Lfe, BackLeft, BackRight],
-        _ => &[FrontLeft, FrontRight, Centre, Lfe, BackLeft, BackRight, SideLeft, SideRight],
+        _ => &[
+            FrontLeft, FrontRight, Centre, Lfe, BackLeft, BackRight, SideLeft, SideRight,
+        ],
     };
     let mut roles = known.to_vec();
     roles.resize(channels, Unknown);
@@ -106,12 +108,19 @@ impl Matrix {
     /// One output sample: `frame` holds one source frame.
     #[inline]
     pub fn mix(&self, frame: &[f32], out_channel: usize) -> f32 {
-        self.rows[out_channel].iter().map(|&(s, g)| frame[s] * g).sum()
+        self.rows[out_channel]
+            .iter()
+            .map(|&(s, g)| frame[s] * g)
+            .sum()
     }
 
     #[cfg(test)]
     fn gain(&self, src: usize, dst: usize) -> f32 {
-        self.rows[dst].iter().filter(|(s, _)| *s == src).map(|(_, g)| g).sum()
+        self.rows[dst]
+            .iter()
+            .filter(|(s, _)| *s == src)
+            .map(|(_, g)| g)
+            .sum()
     }
 }
 

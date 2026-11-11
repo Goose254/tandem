@@ -37,7 +37,10 @@ impl Recording {
                 .initialize_client(
                     &wf,
                     Direction::Capture,
-                    StreamMode::PollingShared { autoconvert: true, buffer_duration_hns: 4 * period },
+                    StreamMode::PollingShared {
+                        autoconvert: true,
+                        buffer_duration_hns: 4 * period,
+                    },
                     None,
                 )
                 .context("opening the microphone")?;
@@ -65,7 +68,12 @@ impl Recording {
             client.stop_stream()?;
             Ok(mono)
         })?;
-        Ok(Self { rate: fmt.rate, stop, started, thread })
+        Ok(Self {
+            rate: fmt.rate,
+            stop,
+            started,
+            thread,
+        })
     }
 
     pub fn rate(&self) -> usize {

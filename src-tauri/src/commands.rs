@@ -35,7 +35,12 @@ pub fn set_enabled(app: AppHandle, state: State<AppState>, enabled: bool) {
 }
 
 #[tauri::command]
-pub fn set_source(app: AppHandle, state: State<AppState>, follow_default: bool, device: Option<DeviceRef>) {
+pub fn set_source(
+    app: AppHandle,
+    state: State<AppState>,
+    follow_default: bool,
+    device: Option<DeviceRef>,
+) {
     commit(&app, &state, |s| {
         s.source.follow_default = follow_default;
         if device.is_some() {
@@ -48,7 +53,10 @@ pub fn set_source(app: AppHandle, state: State<AppState>, follow_default: bool, 
 pub fn add_output(app: AppHandle, state: State<AppState>, device: DeviceRef) {
     commit(&app, &state, |s| {
         if s.output_mut(&device.id).is_none() {
-            s.outputs.push(OutputSetting { device, ..Default::default() });
+            s.outputs.push(OutputSetting {
+                device,
+                ..Default::default()
+            });
         }
     });
 }
@@ -74,7 +82,12 @@ pub fn restore_output(app: AppHandle, state: State<AppState>, output: OutputSett
 }
 
 #[tauri::command]
-pub fn set_output_enabled(app: AppHandle, state: State<AppState>, device_id: String, enabled: bool) {
+pub fn set_output_enabled(
+    app: AppHandle,
+    state: State<AppState>,
+    device_id: String,
+    enabled: bool,
+) {
     commit(&app, &state, |s| {
         if let Some(o) = s.output_mut(&device_id) {
             o.enabled = enabled;
@@ -84,7 +97,10 @@ pub fn set_output_enabled(app: AppHandle, state: State<AppState>, device_id: Str
 
 #[tauri::command]
 pub fn set_output_delay(app: AppHandle, state: State<AppState>, device_id: String, delay_ms: u32) {
-    let ms = delay_ms.clamp(tandem_engine::engine::MIN_DELAY_MS, tandem_engine::engine::MAX_DELAY_MS);
+    let ms = delay_ms.clamp(
+        tandem_engine::engine::MIN_DELAY_MS,
+        tandem_engine::engine::MAX_DELAY_MS,
+    );
     // Apply to the engine right away so tuning by ear feels immediate.
     crate::calibration::apply_delay(&state, &device_id, ms);
     let _ = app.emit("settings", state.settings());
@@ -157,7 +173,11 @@ where
 }
 
 #[tauri::command]
-pub fn set_preferences(app: AppHandle, state: State<AppState>, patch: PreferencesPatch) -> Settings {
+pub fn set_preferences(
+    app: AppHandle,
+    state: State<AppState>,
+    patch: PreferencesPatch,
+) -> Settings {
     let locale_changed = patch.locale.is_some();
     commit(&app, &state, |s| {
         if let Some(v) = patch.theme {
@@ -208,7 +228,11 @@ pub fn get_autostart(app: AppHandle) -> bool {
 #[tauri::command]
 pub fn set_autostart(app: AppHandle, on: bool) -> Result<bool, String> {
     let launcher = app.autolaunch();
-    let r = if on { launcher.enable() } else { launcher.disable() };
+    let r = if on {
+        launcher.enable()
+    } else {
+        launcher.disable()
+    };
     r.map_err(|e| e.to_string())?;
     Ok(launcher.is_enabled().unwrap_or(on))
 }

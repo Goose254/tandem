@@ -126,7 +126,14 @@ fn run(app: &AppHandle, device_id: &str, automatic: bool) {
     {
         let mut busy = state.calibrating.lock().unwrap();
         if busy.is_some() {
-            emit(app, CalibrationEvent { phase: "failed", failure: Some(Failure::Busy), ..base });
+            emit(
+                app,
+                CalibrationEvent {
+                    phase: "failed",
+                    failure: Some(Failure::Busy),
+                    ..base
+                },
+            );
             return;
         }
         *busy = Some(device_id.to_string());
@@ -140,7 +147,14 @@ fn run(app: &AppHandle, device_id: &str, automatic: bool) {
     last.reference = reference.clone();
     let mut outcome: Result<(), Failure> = Ok(());
     for pass in 1..=PASSES {
-        emit(app, CalibrationEvent { phase: "listening", pass, ..last.clone() });
+        emit(
+            app,
+            CalibrationEvent {
+                phase: "listening",
+                pass,
+                ..last.clone()
+            },
+        );
         let offset = match measure_once(&state, device_id, reference.as_deref()) {
             Ok(o) => o,
             Err(f) => {
@@ -181,9 +195,28 @@ fn run(app: &AppHandle, device_id: &str, automatic: bool) {
 
     drop(busy);
     match outcome {
-        Ok(()) if last.lag_ms.is_some() => emit(app, CalibrationEvent { phase: "limited", ..last }),
-        Ok(()) => emit(app, CalibrationEvent { phase: "done", ..last }),
-        Err(f) => emit(app, CalibrationEvent { phase: "failed", failure: Some(f), ..last }),
+        Ok(()) if last.lag_ms.is_some() => emit(
+            app,
+            CalibrationEvent {
+                phase: "limited",
+                ..last
+            },
+        ),
+        Ok(()) => emit(
+            app,
+            CalibrationEvent {
+                phase: "done",
+                ..last
+            },
+        ),
+        Err(f) => emit(
+            app,
+            CalibrationEvent {
+                phase: "failed",
+                failure: Some(f),
+                ..last
+            },
+        ),
     }
 }
 
@@ -220,10 +253,13 @@ pub fn apply_delay(state: &AppState, device_id: &str, ms: u32) {
 /// The output to sync against instead of the source, when one is set and usable.
 fn reference_for(state: &AppState, device_id: &str) -> Option<String> {
     let settings = state.settings.lock().unwrap();
-    settings
-        .sync_reference
-        .clone()
-        .filter(|r| r != device_id && settings.outputs.iter().any(|o| &o.device.id == r && o.enabled))
+    settings.sync_reference.clone().filter(|r| {
+        r != device_id
+            && settings
+                .outputs
+                .iter()
+                .any(|o| &o.device.id == r && o.enabled)
+    })
 }
 
 /// Restores every output's mute state when dropped.
@@ -250,11 +286,18 @@ fn sleep_s(s: f64) {
 
 /// One measurement: returns the output's offset in seconds from the source, or from the
 /// `reference` output when there is one.
-fn measure_once(state: &AppState, device_id: &str, reference: Option<&str>) -> Result<f64, Failure> {
+fn measure_once(
+    state: &AppState,
+    device_id: &str,
+    reference: Option<&str>,
+) -> Result<f64, Failure> {
     let mic = state.settings().mic.ok_or(Failure::NoMic)?;
     let mic_id = {
         let devices = state.devices.lock().unwrap();
-        resolve(&devices.inputs, &mic).ok_or(Failure::MicMissing)?.id.clone()
+        resolve(&devices.inputs, &mic)
+            .ok_or(Failure::MicMissing)?
+            .id
+            .clone()
     };
     let (src_rate, delay_ms) = with_engine(state, |e| {
         e.output(device_id)
@@ -264,7 +307,9 @@ fn measure_once(state: &AppState, device_id: &str, reference: Option<&str>) -> R
     .ok_or(Failure::NotRunning)?;
     let reference_delay_ms = match reference {
         Some(r) => with_engine(state, |e| {
-            e.output(r).filter(|h| h.is_alive() && h.status().running).map(|h| h.delay_ms())
+            e.output(r)
+                .filter(|h| h.is_alive() && h.status().running)
+                .map(|h| h.delay_ms())
         })?
         .ok_or(Failure::ReferenceNotRunning)?,
         None => 0,
@@ -296,7 +341,13 @@ fn measure_once(state: &AppState, device_id: &str, reference: Option<&str>) -> R
     }
     sleep_s(0.4);
 
-    let sweep = Arc::new(calibrate::log_sweep(src_rate, SWEEP_S, SWEEP_F0, SWEEP_F1, SWEEP_AMPLITUDE));
+    let sweep = Arc::new(calibrate::log_sweep(
+        src_rate,
+        SWEEP_S,
+        SWEEP_F0,
+        SWEEP_F1,
+        SWEEP_AMPLITUDE,
+    ));
     let before = with_engine(state, |e| e.signal_start_frames().len())?;
     with_engine(state, |e| e.play_signal(Arc::clone(&sweep)))?;
     // Wait until every delayed copy of sweep #1 is entirely past.
@@ -305,7 +356,11 @@ fn measure_once(state: &AppState, device_id: &str, reference: Option<&str>) -> R
         .ok_or(Failure::NotRunning)?;
     sleep_s(0.15);
     with_engine(state, |e| e.play_signal(Arc::clone(&sweep)))?;
-    let reference_wait_s = if reference.is_some() { longest_delay_s } else { 0.0 };
+    let reference_wait_s = if reference.is_some() {
+        longest_delay_s
+    } else {
+        0.0
+    };
     sleep_s(SWEEP_S + SOURCE_LATENCY_MARGIN_S + MAX_OFFSET_S + reference_wait_s);
 
     let frames = with_engine(state, |e| e.signal_start_frames())?;

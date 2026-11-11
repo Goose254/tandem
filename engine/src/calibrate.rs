@@ -147,7 +147,11 @@ pub fn analyze(
     if rate == 0 || template.is_empty() || !(spacing_s > 0.0) || !spacing_s.is_finite() {
         return Err(CalibrationError::RecordingTooShort);
     }
-    let max_offset_s = if max_offset_s.is_finite() { max_offset_s.max(0.0) } else { 1.0 };
+    let max_offset_s = if max_offset_s.is_finite() {
+        max_offset_s.max(0.0)
+    } else {
+        1.0
+    };
     let r = rate as f64;
     let len = recording.len();
     let spacing_n = (spacing_s * r).round() as usize;
@@ -164,7 +168,9 @@ pub fn analyze(
     // --- Source arrival of sweep #1: the lag whose envelope repeats `spacing` later.
     let dilated = sliding_max(&env, radius);
     let pairs = len - spacing_n;
-    let score: Vec<f64> = (0..pairs).map(|k| env[k].min(dilated[k + spacing_n])).collect();
+    let score: Vec<f64> = (0..pairs)
+        .map(|k| env[k].min(dilated[k + spacing_n]))
+        .collect();
     let best = score.iter().copied().fold(0.0, f64::max);
     if !(best > 0.0) || best < detect {
         return Err(CalibrationError::SourceNotHeard);
@@ -185,7 +191,11 @@ pub fn analyze(
     let post = (PATTERN_POST_S * r).round() as isize;
     let d_max = radius as isize;
     let at = |i: isize| -> f64 {
-        if i >= 0 && (i as usize) < len { env[i as usize] } else { 0.0 }
+        if i >= 0 && (i as usize) < len {
+            env[i as usize]
+        } else {
+            0.0
+        }
     };
     let align: Vec<f64> = (-d_max..=d_max)
         .map(|d| {
@@ -213,7 +223,10 @@ pub fn analyze(
     if !(d_best >= MIN_TARGET_REL * p1_val) || d_best < detect {
         return Err(CalibrationError::TargetNotHeard);
     }
-    let t_first = residual.iter().position(|&v| v >= d_best * SIX_DB).unwrap_or(0);
+    let t_first = residual
+        .iter()
+        .position(|&v| v >= d_best * SIX_DB)
+        .unwrap_or(0);
     let t_peak = climb(&residual, t_first, climb_n, residual.len() - 1);
     let t = (lo + t_peak) as f64 + parabolic(&residual, t_peak);
     let target_val = residual[t_peak];
@@ -222,7 +235,11 @@ pub fn analyze(
         source_arrival_s: p1 / r,
         target_offset_s: (t - s2) / r,
         target_strength: target_val / p1_val,
-        confidence: if floor > 0.0 { p1_val.min(target_val) / floor } else { f64::INFINITY },
+        confidence: if floor > 0.0 {
+            p1_val.min(target_val) / floor
+        } else {
+            f64::INFINITY
+        },
     })
 }
 
@@ -264,7 +281,10 @@ fn envelope(recording: &[f32], template: &[f32]) -> Vec<f64> {
     }
     inverse.process(&mut x);
     let scale = 1.0 / n as f64;
-    x[..recording.len()].iter().map(|c| c.norm() * scale).collect()
+    x[..recording.len()]
+        .iter()
+        .map(|c| c.norm() * scale)
+        .collect()
 }
 
 fn median(values: &[f64]) -> f64 {
@@ -428,11 +448,21 @@ mod tests {
             let direct = [(0.0, 1.0)];
             for &(d, g) in direct.iter().chain(&self.src_reflections) {
                 add_sweep(&mut buf, self.rate, self.t0 + d, self.src_gain * g);
-                add_sweep(&mut buf, self.rate, self.t0 + spacing + d, self.src_gain * g);
+                add_sweep(
+                    &mut buf,
+                    self.rate,
+                    self.t0 + spacing + d,
+                    self.src_gain * g,
+                );
             }
             if let Some(tg) = self.tgt_gain {
                 for &(d, g) in direct.iter().chain(&self.tgt_reflections) {
-                    add_sweep(&mut buf, self.rate, self.t0 + spacing + self.offset + d, tg * g);
+                    add_sweep(
+                        &mut buf,
+                        self.rate,
+                        self.t0 + spacing + self.offset + d,
+                        tg * g,
+                    );
                 }
             }
             let mut rng = Rng(self.seed);
@@ -451,9 +481,19 @@ mod tests {
         fn check(&self) -> Measurement {
             let m = self.analyze().expect("measurement");
             let err = (m.target_offset_s - self.offset).abs();
-            assert!(err < 0.000_25, "offset {} vs {} (err {err})", m.target_offset_s, self.offset);
+            assert!(
+                err < 0.000_25,
+                "offset {} vs {} (err {err})",
+                m.target_offset_s,
+                self.offset
+            );
             let src_err = (m.source_arrival_s - self.t0).abs();
-            assert!(src_err < 0.000_25, "source {} vs {}", m.source_arrival_s, self.t0);
+            assert!(
+                src_err < 0.000_25,
+                "source {} vs {}",
+                m.source_arrival_s,
+                self.t0
+            );
             m
         }
     }
@@ -476,24 +516,47 @@ mod tests {
 
     #[test]
     fn late_target_35ms_44k() {
-        Scenario { rate: 44_100, offset: 0.035, drift_ppm: -90.0, seed: 7, ..Default::default() }
-            .check();
+        Scenario {
+            rate: 44_100,
+            offset: 0.035,
+            drift_ppm: -90.0,
+            seed: 7,
+            ..Default::default()
+        }
+        .check();
     }
 
     #[test]
     fn early_target_minus_60ms_48k() {
-        Scenario { offset: -0.060, seed: 11, ..Default::default() }.check();
+        Scenario {
+            offset: -0.060,
+            seed: 11,
+            ..Default::default()
+        }
+        .check();
     }
 
     #[test]
     fn nearly_synced_target_2ms_44k() {
-        Scenario { rate: 44_100, offset: 0.002, tgt_gain: Some(0.5), seed: 13, ..Default::default() }
-            .check();
+        Scenario {
+            rate: 44_100,
+            offset: 0.002,
+            tgt_gain: Some(0.5),
+            seed: 13,
+            ..Default::default()
+        }
+        .check();
     }
 
     #[test]
     fn target_louder_than_source() {
-        Scenario { offset: 0.120, tgt_gain: Some(2.0), seed: 17, ..Default::default() }.check();
+        Scenario {
+            offset: 0.120,
+            tgt_gain: Some(2.0),
+            seed: 17,
+            ..Default::default()
+        }
+        .check();
     }
 
     #[test]
@@ -514,14 +577,25 @@ mod tests {
     fn heavy_noise_quiet_target() {
         // Per-sample the target sweep is ~10 dB under the noise; the sweep's processing gain
         // still pulls it out.
-        let m = Scenario { noise: 0.3, tgt_gain: Some(0.3), offset: 0.250, seed: 23, ..Default::default() }
-            .check();
+        let m = Scenario {
+            noise: 0.3,
+            tgt_gain: Some(0.3),
+            offset: 0.250,
+            seed: 23,
+            ..Default::default()
+        }
+        .check();
         assert!(m.confidence > DETECT_RATIO);
     }
 
     #[test]
     fn missing_target_is_reported() {
-        let r = Scenario { tgt_gain: None, seed: 29, ..Default::default() }.analyze();
+        let r = Scenario {
+            tgt_gain: None,
+            seed: 29,
+            ..Default::default()
+        }
+        .analyze();
         assert_eq!(r, Err(CalibrationError::TargetNotHeard));
     }
 
@@ -531,7 +605,10 @@ mod tests {
         let mut rng = Rng(31);
         let rec: Vec<f32> = (0..rate * 5).map(|_| (0.1 * rng.gauss()) as f32).collect();
         let template = log_sweep(rate, DUR, F0, F1, AMP as f32);
-        assert_eq!(analyze(&rec, rate, &template, SPACING, 1.0), Err(CalibrationError::SourceNotHeard));
+        assert_eq!(
+            analyze(&rec, rate, &template, SPACING, 1.0),
+            Err(CalibrationError::SourceNotHeard)
+        );
         let silence = vec![0.0f32; rate * 5];
         assert_eq!(
             analyze(&silence, rate, &template, SPACING, 1.0),
@@ -544,12 +621,28 @@ mod tests {
         let rate = 48_000;
         let template = log_sweep(rate, DUR, F0, F1, AMP as f32);
         let short = vec![0.0f32; rate * 2];
-        assert_eq!(analyze(&short, rate, &template, SPACING, 1.0), Err(CalibrationError::RecordingTooShort));
-        assert_eq!(analyze(&[], rate, &template, SPACING, 1.0), Err(CalibrationError::RecordingTooShort));
-        assert_eq!(analyze(&short, rate, &[], SPACING, 1.0), Err(CalibrationError::RecordingTooShort));
-        assert_eq!(analyze(&short, 0, &template, SPACING, 1.0), Err(CalibrationError::RecordingTooShort));
+        assert_eq!(
+            analyze(&short, rate, &template, SPACING, 1.0),
+            Err(CalibrationError::RecordingTooShort)
+        );
+        assert_eq!(
+            analyze(&[], rate, &template, SPACING, 1.0),
+            Err(CalibrationError::RecordingTooShort)
+        );
+        assert_eq!(
+            analyze(&short, rate, &[], SPACING, 1.0),
+            Err(CalibrationError::RecordingTooShort)
+        );
+        assert_eq!(
+            analyze(&short, 0, &template, SPACING, 1.0),
+            Err(CalibrationError::RecordingTooShort)
+        );
         // Sweep #2 cut off by the end of the recording.
-        let cut = Scenario { total_s: 3.0, seed: 37, ..Default::default() };
+        let cut = Scenario {
+            total_s: 3.0,
+            seed: 37,
+            ..Default::default()
+        };
         assert_eq!(cut.analyze(), Err(CalibrationError::RecordingTooShort));
     }
 }

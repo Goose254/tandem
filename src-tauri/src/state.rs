@@ -67,7 +67,11 @@ pub struct DeviceDto {
 
 impl From<DeviceInfo> for DeviceDto {
     fn from(d: DeviceInfo) -> Self {
-        Self { id: d.id, name: d.name, is_default: d.is_default }
+        Self {
+            id: d.id,
+            name: d.name,
+            is_default: d.is_default,
+        }
     }
 }
 

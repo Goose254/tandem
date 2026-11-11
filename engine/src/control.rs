@@ -61,10 +61,10 @@ impl DriftController {
         };
         self.filtered = Some(f);
         let err = f - target;
-        self.integral = (self.integral + self.ki * err * dt)
-            .clamp(-self.max_correction, self.max_correction);
-        let correction = (self.kp * err + self.integral)
-            .clamp(-self.max_correction, self.max_correction);
+        self.integral =
+            (self.integral + self.ki * err * dt).clamp(-self.max_correction, self.max_correction);
+        let correction =
+            (self.kp * err + self.integral).clamp(-self.max_correction, self.max_correction);
         self.last_correction = correction;
         // Too much buffered (err > 0) -> consume input faster -> fewer output frames per input.
         Action::Ratio(1.0 - correction)
