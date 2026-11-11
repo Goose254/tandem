@@ -152,6 +152,8 @@ npm run build:demo     # the same simulated UI as static files in dist-demo/, fo
 npm run release        # build the signed release app, installer and update files (needs the key)
 npm run release:unsigned  # the same without update signing: for local builds and forks
 npm run licenses       # regenerate THIRD_PARTY_LICENSES.md after changing dependencies
+npm run lint           # ESLint on the UI
+cargo fmt --all --check  # Rust formatting
 cargo test --release   # engine, calibration and settings tests
 ```
 
@@ -160,8 +162,8 @@ instead of Windows audio, and relative asset paths, so `dist-demo/` can be serve
 sub-path or shown in an `<iframe>` (add `?lang=fr` for French). Nothing in it plays or captures
 sound. The app itself is built with `npm run build`, which leaves the simulated backend out.
 
-Continuous integration (`.github/workflows/ci.yml`) runs the type-check, the UI build and the
-tests on every push.
+Continuous integration (`.github/workflows/ci.yml`) runs the Rust format check, the UI lint,
+the type-check, the UI build and the Rust tests on every pull request and every push to `main`.
 
 ### Releases
 

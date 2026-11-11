@@ -24,11 +24,19 @@ jobs:
           node-version: 22
           cache: npm
 
+      # This action installs the minimal profile, so rustfmt has to be asked for.
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
 
       - uses: Swatinem/rust-cache@v2
 
+      # Formatting only, no compilation: fails fast before the long steps.
+      - run: cargo fmt --all --check
+
       - run: npm ci
+
+      - run: npm run lint
 
       # Type-checks and produces dist/, which the desktop crate embeds at compile time.
       - run: npm run build

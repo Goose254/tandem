@@ -19,7 +19,7 @@ delayed so they all sound together, with continuous clock-drift correction.
 | `src-tauri/` | The desktop app (Tauri 2): supervisor, auto-sync orchestration, settings, tray, commands. |
 | `src/` | The UI: React 19, TypeScript, CSS modules, zustand. `lib/mock.ts` is a simulated backend for the browser preview. |
 | `docs/` | Release runbook, release notes for the next version, hardware checklist. |
-| `.github/workflows/` | `ci.yml` (every push) and `release.yml` (on a `v*` tag). |
+| `.github/workflows/` | `ci.yml` (pull requests and pushes to `main`) and `release.yml` (on a `v*` tag). |
 
 Key files:
 
@@ -42,6 +42,8 @@ npm run dev              # UI only in a browser at http://localhost:1420, simula
 npm run tauri dev        # the real app with hot reload
 npm run build            # type-check and build the UI into dist/ (no simulated backend in it)
 npm run build:demo       # the UI with the simulated backend into dist-demo/, for embedding
+npm run lint             # ESLint on the UI (eslint.config.js); CI fails on any error or warning
+cargo fmt --all --check  # Rust formatting; CI fails on a difference, so run `cargo fmt --all` first
 cargo test --release     # all Rust tests (the desktop crate needs dist/ to exist: build the UI first)
 npm run release:unsigned # installer without update signing: use this for local testing
 npm run release          # signed installer: needs the private key, see docs/RELEASING.md
@@ -129,7 +131,10 @@ bars of the previous logo.
 
 Automated checks do not cover real audio hardware, so say what was and was not verified.
 
-- **Types and tests:** `npm run build`, then `cargo test --release`.
+- **Lint, types and tests:** `npm run lint`, `npm run build`, `cargo fmt --all --check`, then
+  `cargo test --release`. CI runs the same four. Clippy is not a gate yet: it reports a handful
+  of style lints in `engine/src/calibrate.rs`, `engine/src/engine.rs` and
+  `src-tauri/src/supervisor.rs` that have to be settled first.
 - **UI in the browser preview:** `npm run dev`, open <http://localhost:1420>. The simulated
   backend has a Bluetooth source and two outputs. Useful switches: `?lang=fr` for French,
   `?update=1.2.3` to simulate an available update, `?update=fail` for a failed update check.

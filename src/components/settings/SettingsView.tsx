@@ -17,11 +17,11 @@ export function SettingsView() {
   const settings = useStore((s) => s.settings)!;
   const autostart = useStore((s) => s.autostart);
   const setAutostart = useStore((s) => s.setAutostart);
-  const [version, setVersion] = useState("");
+  // Outside the desktop shell there is no app to ask: the preview says so from the first render.
+  const [version, setVersion] = useState(inShell ? "" : "preview");
 
   useEffect(() => {
     if (inShell) void getVersion().then(setVersion).catch(() => setVersion("dev"));
-    else setVersion("preview");
   }, []);
 
   return (

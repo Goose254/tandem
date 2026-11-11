@@ -39,8 +39,13 @@ export function DelayControl({
   // Follow the persisted value unless a local edit is in flight. A value that changed
   // elsewhere (auto-sync, another source) also resets what counts as "already sent":
   // otherwise going back to the last value sent from here would be dropped as a repeat.
+  //
+  // The two setState calls below are deliberate. Whether to adopt the new value depends on
+  // `pending`, a ref that may only be read outside render, so this cannot be derived state;
+  // the cost is one extra render when the persisted value changes, which is rare.
   useEffect(() => {
     lastSent.current = value;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- see the comment above
     if (value > SLIDER_MAX) setWide(true);
     if (pending.current == null) setLocal(value);
   }, [value]);

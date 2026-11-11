@@ -16,6 +16,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "build:demo": "tsc && vite build --mode demo",
+    "lint": "eslint . --max-warnings 0",
     "preview": "vite preview",
     "tauri": "tauri",
     "icons": "tauri icon src-tauri/icons/source/app-icon.svg -o src-tauri/icons",
@@ -34,11 +35,16 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tauri-apps/cli": "^2.12.4",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@vitejs/plugin-react": "^4.6.0",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
     "typescript": "~5.8.3",
+    "typescript-eslint": "^8.72.2",
     "vite": "^7.0.4"
   }
 }
