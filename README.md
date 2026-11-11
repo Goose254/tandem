@@ -37,19 +37,27 @@ No virtual audio cable or driver is needed.
 - **Survives disconnects.** When the Bluetooth amp drops and comes back, or an output is
   unplugged and replugged, Tandem picks it up again on its own, even if Windows gave it a new id.
 - **Sync by ear:** calibration clicks plus a delay control with 1 ms and 10 ms steps.
-- **Sync with a microphone:** two sweeps, deconvolution and a verification pass. The
-  microphone's own latency cancels out. Optionally re-syncs automatically after a reconnect.
-  An output can be lined up with another output instead of the source, for a source nobody
-  listens to.
-- **Volume keys act on every output**, including when the source applies the Windows volume
-  itself (most Bluetooth devices), which loopback capture cannot see.
+- **Sync with a microphone** (*experimental*): two sweeps, deconvolution and a verification
+  pass. The microphone's own latency cancels out. Optionally re-syncs automatically after a
+  reconnect. An output can be lined up with another output instead of the source, for a source
+  nobody listens to.
+- **Volume keys act on every output.** Windows' own volume is part of what is captured, so the
+  copies follow it. When the source applies the volume itself (most Bluetooth devices),
+  loopback capture cannot see it and Tandem applies it to the outputs (*experimental*).
 - **Surround and mono are mixed, not cut:** a 5.1 or 7.1 source keeps its centre and surround
   channels on stereo speakers.
-- **Optional pause when nothing plays**, so Windows can go to sleep.
+- **Optional pause when nothing plays** (*experimental*), so Windows can go to sleep.
 - **Tray icon** with a status popup and a quick on/off switch. Close-to-tray, launch at login,
   start hidden.
 - **Updates itself** from the GitHub releases, when you say so.
 - English and French, light and dark themes (follows the system by default).
+
+**Experimental** means built and, where a computer can check it, tested (the sync maths runs
+against simulated recordings), but **not yet confirmed on real hardware**: microphone
+auto-sync, following the volume of a source that applies it itself, and "pause when nothing
+plays". The checks they are waiting for are sections 3, 5 and 6 of
+[docs/hardware-test.md](docs/hardware-test.md); each label goes away once its checks pass.
+Sync by ear has been confirmed on real devices and is the method to rely on meanwhile.
 
 ## How it works
 
@@ -67,8 +75,9 @@ No virtual audio cable or driver is needed.
   Bluetooth link's latency. Every other output gets a copy delayed by the difference.
 - **Keepalive**: Tandem plays inaudible silence on the source, so loopback never stalls during
   silence and the Bluetooth link stays awake with a stable latency.
-- **Priority**: the audio threads run in Windows' "Pro Audio" scheduling class, so a busy CPU
-  does not cause dropouts.
+- **Priority**: the audio threads ask Windows for its "Pro Audio" scheduling class, which
+  makes dropouts under a busy CPU much less likely. It is best effort, not a guarantee: if
+  Windows refuses the request, the threads keep their normal priority.
 - **Drift control**: two devices never run at exactly the same rate (typically tens of ppm,
   a few ms per minute). A PI controller watches how much audio is buffered per output and
   nudges its resampling ratio by a few ppm. That's far below anything audible, and the delay
