@@ -19,6 +19,15 @@ for hours, not minutes.
 
 No virtual audio cable or driver is needed.
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/outputs-dark.png" />
+    <img src="docs/images/outputs-light.png" width="780" alt="Tandem's Outputs screen: a Bluetooth source and two outputs, each with its delay, volume, on/off switch and level meter. Captured from the simulated preview, not from real devices." />
+  </picture>
+  <br />
+  <sub>The Outputs screen. Captured from the simulated preview (<code>npm run dev</code>): the devices and levels shown are made up.</sub>
+</p>
+
 ## Features
 
 - **Any number of outputs**, each with its own delay, volume, on/off switch and live level meter.
@@ -69,6 +78,12 @@ No virtual audio cable or driver is needed.
   inverse filter turns each arrival into a sharp peak. The source is the peak that repeats
   exactly one spacing later; subtracting its pattern leaves the output's arrival. The gap
   between them is the correction.
+
+<p align="center">
+  <img src="docs/images/auto-sync.gif" width="780" alt="The Sync screen running microphone auto-sync: Run auto-sync, Listening pass 1 of 2, pass 2 of 2, then the output's delay changes from 214 ms to 202 ms. Recorded from the simulated preview; no sound was played or measured." />
+  <br />
+  <sub>Microphone auto-sync in the Sync screen. Recorded from the simulated preview: it shows the steps, nothing was played or measured and the result is made up (<a href="docs/images/auto-sync.mp4">MP4</a>).</sub>
+</p>
 
 ## Install
 
