@@ -1,19 +1,33 @@
 /*
  * The typed bridge to the Rust side. Types mirror the serde structs (camelCase); each command
- * is a thin invoke wrapper. Outside the desktop shell (a plain browser preview) calls reject,
- * and callers treat that as "no data".
+ * is a thin invoke wrapper.
+ *
+ * Inside the desktop shell every call goes to the Rust commands. Outside it there are two cases:
+ * the dev server (`npm run dev` in a browser) and the demo build (`npm run build:demo`) answer
+ * from the simulated backend in `mock.ts`; any other build has no backend at all, so calls
+ * reject and callers treat that as "no data".
  */
 
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { UnlistenFn } from "@tauri-apps/api/event";
-import { mockInvoke, mockListen } from "./mock";
 
-/** True inside the desktop shell; false in a plain browser preview. */
+/** True inside the desktop shell; false in a plain browser. */
 export const inShell = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+/**
+ * The simulated backend, or null where there is none. The first half of the test is a
+ * build-time constant: in a normal production build it is false, the import below is dead code
+ * and the bundler leaves `mock.ts` out of the output entirely. The second half keeps the module
+ * from loading (and its timer from starting) inside the shell during `npm run tauri dev`.
+ */
+export const simulated: Promise<typeof import("./mock")> | null =
+  (import.meta.env.DEV || import.meta.env.MODE === "demo") && !inShell ? import("./mock") : null;
+
 function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  return inShell ? tauriInvoke<T>(cmd, args) : mockInvoke<T>(cmd, args);
+  if (inShell) return tauriInvoke<T>(cmd, args);
+  if (simulated) return simulated.then((mock) => mock.mockInvoke<T>(cmd, args));
+  return Promise.reject(new Error("no backend: not running in the desktop shell"));
 }
 
 export type DeviceRef = { id: string; name: string };
@@ -173,7 +187,10 @@ export const ipc = {
 };
 
 export async function on<T>(event: string, handler: (payload: T) => void): Promise<UnlistenFn> {
-  if (!inShell) return mockListen(event, (p) => handler(p as T));
+  if (!inShell) {
+    if (!simulated) return () => {};
+    return (await simulated).mockListen(event, (p) => handler(p as T));
+  }
   try {
     return await listen<T>(event, (e) => handler(e.payload));
   } catch {

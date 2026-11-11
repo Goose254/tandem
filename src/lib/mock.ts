@@ -1,11 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /*
- * Browser-preview backend: when the UI runs outside the desktop shell (`npm run dev` in a
- * browser), commands and events are served from this in-memory model with animated levels,
- * so the interface can be designed and reviewed without Windows audio.
+ * Simulated backend: when the UI runs outside the desktop shell (`npm run dev` in a browser, or
+ * the demo build), commands and events are served from this in-memory model with animated
+ * levels, so the interface can be designed, reviewed and shown without Windows audio.
+ *
+ * `ipc.ts` loads this module on demand, and only there. It must never be imported statically:
+ * that would put it (and the timer at the bottom) back into the app that ships.
  */
 
 import type { CalibrationEvent, Devices, Settings, Snapshot } from "./ipc";
+import type { FoundUpdate } from "./updater";
 
 type Handler = (payload: unknown) => void;
 const listeners = new Map<string, Set<Handler>>();
@@ -187,6 +191,28 @@ export function mockListen(event: string, handler: Handler): () => void {
   if (!listeners.has(event)) listeners.set(event, new Set());
   listeners.get(event)!.add(handler);
   return () => listeners.get(event)?.delete(handler);
+}
+
+/**
+ * The update check of the preview, answered from the page's `?update=` parameter:
+ * `?update=1.2.3` offers that version, `?update=fail` fails the check, nothing means up to date.
+ */
+export async function previewUpdate(): Promise<FoundUpdate | null> {
+  const wanted = new URLSearchParams(location.search).get("update");
+  await new Promise((r) => setTimeout(r, 600));
+  if (wanted === "fail") throw new Error("release feed unreachable (preview)");
+  if (!wanted) return null;
+  return {
+    version: wanted,
+    notes: "- Faster reconnection after a Bluetooth drop\n- Fixes a click when an output starts\n- French wording tweaks",
+    install: async (onProgress) => {
+      for (let i = 0; i <= 20; i++) {
+        onProgress(i / 20);
+        await new Promise((r) => setTimeout(r, 150));
+      }
+    },
+    release: () => {},
+  };
 }
 
 setInterval(() => emit("status", snapshot()), 120);

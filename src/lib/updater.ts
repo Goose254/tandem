@@ -1,11 +1,11 @@
 /*
  * The updater and relaunch calls. The plugins load lazily, so their code stays out of the first
- * chunk. Outside the desktop shell (the browser preview) a check answers from the page's
- * `?update=` parameter, so the prompt can be designed and reviewed without a real release:
- * `?update=1.2.3` offers that version, `?update=fail` fails the check, nothing means up to date.
+ * chunk. Outside the desktop shell a check is answered by the simulated backend (`mock.ts`, in
+ * the browser preview and the demo build only) from the page's `?update=` parameter, so the
+ * prompt can be designed and reviewed without a real release.
  */
 
-import { inShell } from "./ipc";
+import { inShell, simulated } from "./ipc";
 
 /** A found update: what to show, and how to install or drop it. */
 export type FoundUpdate = {
@@ -19,7 +19,10 @@ export type FoundUpdate = {
 
 /** Asks the release feed for a newer build: the update, or null when this build is current. */
 export async function checkForUpdate(): Promise<FoundUpdate | null> {
-  if (!inShell) return previewUpdate();
+  if (!inShell) {
+    if (!simulated) throw new Error("no release feed: not running in the desktop shell");
+    return (await simulated).previewUpdate();
+  }
   const { check } = await import("@tauri-apps/plugin-updater");
   const update = await check();
   if (!update) return null;
@@ -54,22 +57,4 @@ export async function relaunchApp(): Promise<void> {
   } catch {
     /* the installer already restarts the app */
   }
-}
-
-async function previewUpdate(): Promise<FoundUpdate | null> {
-  const wanted = new URLSearchParams(location.search).get("update");
-  await new Promise((r) => setTimeout(r, 600));
-  if (wanted === "fail") throw new Error("release feed unreachable (preview)");
-  if (!wanted) return null;
-  return {
-    version: wanted,
-    notes: "- Faster reconnection after a Bluetooth drop\n- Fixes a click when an output starts\n- French wording tweaks",
-    install: async (onProgress) => {
-      for (let i = 0; i <= 20; i++) {
-        onProgress(i / 20);
-        await new Promise((r) => setTimeout(r, 150));
-      }
-    },
-    release: () => {},
-  };
 }
