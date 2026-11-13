@@ -209,8 +209,6 @@ Known gaps:
   a measurement started by hand and unmuted afterwards, including after Tandem is killed;
   automatic re-sync waiting for silence. Steps 11 and 12 must be run again too, to confirm
   the source mode still behaves as it did.
-- `rustfmt` is not installed in this machine's Rust toolchain, so `cargo fmt --all --check`
-  cannot run here until `rustup component add rustfmt` has been done.
 - The installer is not code-signed, so SmartScreen warns on first run. That needs a paid
   certificate.
 - An in-app update has not yet been confirmed end to end. 1.0.3 is the first release that an

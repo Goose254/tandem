@@ -195,7 +195,10 @@ pub fn find<'a>(live: &'a [SessionInfo], wanted: &SessionRef) -> Option<&'a Sess
 
 /// Every session on a device, for diagnostics. Changes nothing.
 pub fn list(device_id: &str) -> Result<Vec<SessionInfo>> {
-    Ok(live_sessions(device_id)?.into_iter().map(|l| l.info).collect())
+    Ok(live_sessions(device_id)?
+        .into_iter()
+        .map(|l| l.info)
+        .collect())
 }
 
 /// The sessions a measurement on `device_id` would silence. Changes nothing: the caller
@@ -328,9 +331,15 @@ mod tests {
 
     #[test]
     fn a_remembered_session_is_found_as_itself_first() {
-        let live = [session("player|10", "player"), session("player|11", "player")];
+        let live = [
+            session("player|10", "player"),
+            session("player|11", "player"),
+        ];
         let wanted = live[1].reference.clone();
-        assert_eq!(find(&live, &wanted).unwrap().reference.instance_id, "player|11");
+        assert_eq!(
+            find(&live, &wanted).unwrap().reference.instance_id,
+            "player|11"
+        );
     }
 
     #[test]

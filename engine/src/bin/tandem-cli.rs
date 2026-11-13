@@ -179,7 +179,11 @@ fn print_sessions(device_id: &str) -> Result<()> {
             if s.active { "playing" } else { "idle" },
             if s.muted { "muted" } else { "audible" },
             if s.own { "this program " } else { "" },
-            if s.system_sounds { "system sounds " } else { "" },
+            if s.system_sounds {
+                "system sounds "
+            } else {
+                ""
+            },
             if sessions::should_mute(&s) {
                 "<- a measurement would mute it"
             } else {

@@ -468,7 +468,8 @@ fn measure_once(
     let frames = with_engine(state, starts)?;
     let after_counters = with_engine(state, counters)?;
     // The source captured nothing of ours in this mode: any level at all was someone else.
-    let others_heard = to_outputs && with_engine(state, |e| e.take_source_peak())? > OTHER_AUDIO_LEVEL;
+    let others_heard =
+        to_outputs && with_engine(state, |e| e.take_source_peak())? > OTHER_AUDIO_LEVEL;
     let samples = recording.finish().map_err(|_| Failure::MicFailed)?;
     if frames.len() < before + 2 {
         return Err(Failure::NotRunning);

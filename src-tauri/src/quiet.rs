@@ -264,7 +264,8 @@ mod tests {
 
     impl Fake {
         fn new(name: &str) -> Self {
-            let dir = std::env::temp_dir().join(format!("tandem-quiet-{name}-{}", std::process::id()));
+            let dir =
+                std::env::temp_dir().join(format!("tandem-quiet-{name}-{}", std::process::id()));
             let _ = fs::remove_dir_all(&dir);
             Self {
                 dir,
@@ -420,7 +421,8 @@ mod tests {
         assert!(pending(&mixer.dir));
         assert_eq!(recover(&mixer.dir, &mixer), 1);
         // It starts again; Windows gives it back the mute it remembered.
-        mixer.sessions
+        mixer
+            .sessions
             .borrow_mut()
             .insert("player|9".into(), ("player".into(), true, true));
         assert_eq!(recover(&mixer.dir, &mixer), 0);
