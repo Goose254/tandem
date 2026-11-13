@@ -258,6 +258,10 @@ Known gaps:
   a measurement started by hand and unmuted afterwards, including after Tandem is killed;
   automatic re-sync waiting for silence. Steps 11 and 12 must be run again too, to confirm
   the source mode still behaves as it did.
+- The first-run guide has been driven on the real app by a script only (November 2026: a
+  copy with its own identifier and an empty settings folder, hidden, one output nobody hears,
+  no click and no sweep). Nobody has gone through it by hand, with sound, or with the source
+  switched off on the way: docs/hardware-test.md, steps 24 to 28.
 - The installer is not code-signed, so SmartScreen warns on first run. That needs a paid
   certificate.
 - An in-app update has not yet been confirmed end to end. 1.0.3 is the first release that an

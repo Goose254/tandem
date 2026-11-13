@@ -132,3 +132,9 @@ TANDEM_CONFIG_DIR="$(mktemp -d)" ./target/release/tandem.exe
     state as on the Outputs screen, and the guide carries on when it comes back.
 28. Start Tandem normally, with your own settings. **Expect:** no guide, everything as you
     left it. Settings > Getting started > "Show it again" opens it.
+
+Result so far (November 2026): a script drove the real app through steps 24 to 26 and the
+"Show it again" part of step 28, hidden, with one output nobody hears and without turning the
+clicks on or running auto-sync. Every expectation it could read from the page and the
+settings file held. Not done by anyone yet: the same by hand, anything with sound (the clicks
+and auto-sync from step 4 of the guide), and step 27.
