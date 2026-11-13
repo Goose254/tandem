@@ -30,10 +30,12 @@ Key files:
   clicks or test sweeps), `capture_loop` reads loopback, `render_loop` runs per output.
 - `engine/src/control.rs`: the PI drift controller. `engine/src/mix.rs`: channel mixing.
   `engine/src/sys.rs`: "Pro Audio" thread priority and the endpoint volume.
+  `engine/src/sessions.rs`: muting other programs' audio sessions for a measurement.
   `engine/src/calibrate.rs`: sweep generation and analysis for microphone auto-sync.
 - `src-tauri/src/supervisor.rs`: a loop that reconciles the running engine with the settings and
   the connected devices, and publishes status to the UI.
-- `src-tauri/src/calibration.rs`: the auto-sync procedure. `settings.rs`: the settings file.
+- `src-tauri/src/calibration.rs`: the auto-sync procedure. `quiet.rs`: the crash-safe record
+  of programs muted for a measurement. `settings.rs`: the settings file.
   `tray.rs`: tray menu, popup placement, and the tray icon drawn in code.
 - `src/state/store.ts`: app state. `src/state/updater.ts` and `src/lib/updater.ts`: updates.
 
@@ -99,11 +101,32 @@ Requirements: Windows 10 or 11, Rust (MSVC toolchain, edition 2024), Node 20 or 
 - Engine and settings change together under the runtime lock (`apply_delay`,
   `set_output_gain`), and the supervisor reads the settings under the same lock. Lock order is
   always runtime, then settings.
-- Auto-sync must restore every output's mute state on every exit path.
+- Auto-sync must restore everything it silences on every exit path: every output's mute
+  state, the outputs' isolation from the source (`set_outputs_isolated`), and other programs.
+- Other programs are muted only by a measurement the user started, never by an automatic one,
+  and only through `quiet.rs`: the session is written to `muted-sessions.json` *before* it is
+  muted, because Windows keeps a program's mute across restarts. Never call
+  `sessions::mute` from anywhere else in the app.
+- The source mode of auto-sync (no "Line up with") is the one confirmed on hardware. Keep its
+  sequence of calls and waits as it is unless the maintainer asks; `keepalive_loop` plays its
+  sweeps, and the fan-out must stay a pass-through outside a measurement (there is a test).
 - "Pause when nothing plays" stays off by default: the first sound after a pause reaches the
   outputs late.
 - The simulated backend (`src/lib/mock.ts`) is loaded by `src/lib/ipc.ts` on demand, in the
   dev server and the demo build only. Never import it statically: it would ship in the app.
+
+**Unsafe code**
+
+- Avoid it. Both crates deny `unsafe` (`#![deny(unsafe_code)]`), and the two binaries forbid
+  it. Before writing a direct Windows call, look for a safe wrapper in `wasapi` or Tauri.
+- Where there is none, the call lives in `engine/src/sys.rs` or `engine/src/sessions.rs`
+  (which opt in at the top of the file) or in a single function marked
+  `#[allow(unsafe_code)]`. Keep each block to the calls themselves, put a `// SAFETY:` comment
+  on it that says why Windows' requirements hold, wrap it in a safe function, and move every
+  decision taken from the result into plain code with a unit test.
+- Each block must be verified: by a test that runs the real call (read-only, skipped when the
+  `CI` variable is set), or, when it changes the machine, by a `tandem-cli` command run on a
+  device nobody hears. docs/ARCHITECTURE.md lists which is which.
 
 **Settings file**
 
@@ -151,7 +174,18 @@ Automated checks do not cover real audio hardware, so say what was and was not v
   cargo run --release -p tandem-engine --bin tandem-cli -- run --source "<silent device A>" --target "<silent device B>" --delay 0 --duration 6
   ```
 
-  Expect "playing" and 0 underruns.
+  Expect "playing" and 0 underruns. Three more commands cover what auto-sync adds:
+
+  - `tandem-cli probe --source "<A>" --target "<B>"` plays two test sweeps on B alone, cut
+    off from A, as "Line up with" does. Expect the spacing counted in frames to match the
+    one asked for, 0 discontinuities, 0 dropouts, a loudest level above zero on B, and
+    0.00000 captured on A.
+  - `tandem-cli sessions "<device>"` lists the programs playing on a device and says which
+    ones a measurement would mute. It changes nothing.
+  - `tandem-cli quiet-probe "<device>"` mutes those programs, waits, and unmutes them. It
+    writes to the Windows mixer and keeps no record: use it only on a device nobody hears,
+    with a stand-in program (a second `tandem-cli run` on that device), and check with
+    `sessions` first that the stand-in is the only one it would mute.
 - **Everything else** (Bluetooth, a real microphone, disconnects, sleep, the tray on other
   taskbar positions): docs/hardware-test.md, run by the maintainer.
 
@@ -161,14 +195,22 @@ Done, in order: the engine and CLI; the desktop app with tray, installer, Englis
 0 ms delays and sample-rate display; an audit that fixed twenty findings (thread priority,
 channel mixing, volume following, pause when silent, reference-output auto-sync, non-blocking
 disconnects, settings backup, undo, translated errors, tray placement, CI and releases); the
-three-note icon; in-app updates (1.0.1); the first published release (1.0.2).
+three-note icon; in-app updates (1.0.1); the first published release (1.0.2); auto-sync that
+keeps "Line up with" sweeps off the source and silences other programs for a measurement
+started by hand (branch `sync-quiet`, not merged).
 
 Known gaps:
 
 - Volume following on a hardware-volume device and "pause when nothing plays" have not been
   confirmed on real hardware. Sync by ear and microphone auto-sync have, and work well
-  (November 2026: auto-sync landed 4 ms from a delay set by ear). Lining an output up with
-  another output ("Line up with") has not been checked on hardware.
+  (November 2026: auto-sync landed 4 ms from a delay set by ear). Since then, not checked on
+  hardware (docs/hardware-test.md, steps 13 to 18): lining an output up with another output
+  ("Line up with"), whose sweeps now play on the outputs only; other programs being muted for
+  a measurement started by hand and unmuted afterwards, including after Tandem is killed;
+  automatic re-sync waiting for silence. Steps 11 and 12 must be run again too, to confirm
+  the source mode still behaves as it did.
+- `rustfmt` is not installed in this machine's Rust toolchain, so `cargo fmt --all --check`
+  cannot run here until `rustup component add rustfmt` has been done.
 - The installer is not code-signed, so SmartScreen warns on first run. That needs a paid
   certificate.
 - An in-app update has not yet been confirmed end to end. 1.0.3 is the first release that an

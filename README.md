@@ -39,8 +39,9 @@ No virtual audio cable or driver is needed.
 - **Sync by ear:** calibration clicks plus a delay control with 1 ms and 10 ms steps.
 - **Sync with a microphone:** two sweeps, deconvolution and a verification
   pass. The microphone's own latency cancels out. Optionally re-syncs automatically after a
-  reconnect. An output can be lined up with another output instead of the source, for a source
-  nobody listens to.
+  reconnect. An output can be lined up with another output instead of the source; the sweeps
+  then play on those two outputs only. While it measures, Tandem silences your other programs
+  and gives them their sound back afterwards.
 - **Volume keys act on every output.** Windows' own volume is part of what is captured, so the
   copies follow it. When the source applies the volume itself (most Bluetooth devices),
   loopback capture cannot see it and Tandem applies it to the outputs (*experimental*).
@@ -59,8 +60,8 @@ confirmed on real hardware**: following the volume of a source that applies it i
 
 Both ways of syncing have been confirmed on real devices. On the maintainer's setup,
 microphone auto-sync landed 4 ms from a delay that had been set by ear, and the result
-sounds very good. Lining an output up with another output instead of the source has not been
-checked on hardware yet.
+sounds very good. Not confirmed on hardware yet: lining an output up with another output
+instead of the source, and the silencing of other programs during a measurement.
 
 ## How it works
 
@@ -133,8 +134,16 @@ you don't listen to (an unused output) and add every speaker as an output. They 
 through the same path and line up at 0 ms.
 
 **Syncing those with a microphone:** the microphone cannot hear a source nobody listens to. In
-Sync, set "Line up with" to one of the outputs: it plays the first sweep in the source's place.
-If the output being synced is still behind it at 0 ms, the reference is delayed instead.
+Sync, set "Line up with" to one of the outputs: it plays the first sweep in the source's place,
+and the source itself stays silent, so this also works with a source you can hear. If the
+output being synced is still behind it at 0 ms, the reference is delayed instead.
+
+**Other programs during auto-sync:** when you run auto-sync, Tandem mutes the other programs
+playing on the devices it measures, in the Windows volume mixer, for the ten seconds or so it
+takes, then unmutes them. Programs you had muted yourself are left as they are, and so are
+system sounds. If Tandem is closed by force in the middle, it unmutes them the next time it
+starts. The automatic re-sync after a reconnect never does this: it waits until nothing is
+playing.
 
 **Volume:** Windows' software volume is part of what loopback captures, so the copies follow it
 on their own. A device that applies the volume itself (most Bluetooth devices) hides it from

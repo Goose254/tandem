@@ -8,7 +8,8 @@
 //!   test signals). This keeps loopback capture flowing when nothing plays, and keeps a
 //!   Bluetooth link awake so its latency stays stable.
 //! - **capture** reads the source with WASAPI loopback and fans the samples out to one FIFO
-//!   per output.
+//!   per output. A measurement can also hand it a signal for the outputs alone, which never
+//!   goes through the source device (see [`Engine::play_signal_to_outputs`]).
 //! - one **render** thread per output pulls from its FIFO through a drift-controlled
 //!   resampler, keeping the buffered amount equal to that output's delay.
 //!
@@ -16,7 +17,7 @@
 //! supervisor restarts it when the device comes back.
 
 use std::collections::VecDeque;
-use std::sync::atomic::{AtomicBool, AtomicU32, Ordering::Relaxed};
+use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
@@ -187,6 +188,15 @@ struct Injection {
     started_at: Vec<u64>,
 }
 
+/// What the capture thread adds to a batch on its way to the outputs.
+#[derive(Default)]
+struct FanOut {
+    /// `started_at` counts frames handed to the outputs, not frames played on the source.
+    injection: Injection,
+    /// Frames handed to the outputs so far.
+    frame: u64,
+}
+
 struct SourceShared {
     fmt: Format,
     stop: AtomicBool,
@@ -195,7 +205,18 @@ struct SourceShared {
     clicks: AtomicBool,
     outputs: RwLock<Vec<Arc<OutputShared>>>,
     injection: Mutex<Injection>,
+    /// Signals for the outputs alone, added after capture, and the clock they are timed on.
+    fan_out: Mutex<FanOut>,
+    /// Drop the captured audio before it reaches the outputs (a measurement is running).
+    isolated: AtomicBool,
+    /// Loopback packets flagged as discontinuous: capture lost audio there.
+    discontinuities: AtomicU64,
     level: AtomicU32,
+    /// Highest captured level since [`Engine::take_source_peak`] last asked.
+    peak: AtomicU32,
+    /// The Windows software volume that loopback audio already carries (1.0 when the device
+    /// applies its volume itself), kept current by the keepalive thread.
+    loopback_gain: AtomicU32,
     /// Apply the source's hardware volume and mute to the outputs.
     follow_volume: AtomicBool,
     /// The gain to apply for that, kept current by the keepalive thread.
@@ -221,7 +242,12 @@ impl Engine {
             clicks: AtomicBool::new(false),
             outputs: RwLock::new(Vec::new()),
             injection: Mutex::new(Injection::default()),
+            fan_out: Mutex::new(FanOut::default()),
+            isolated: AtomicBool::new(false),
+            discontinuities: AtomicU64::new(0),
             level: f32_atomic(0.0),
+            peak: f32_atomic(0.0),
+            loopback_gain: f32_atomic(1.0),
             follow_volume: AtomicBool::new(cfg.follow_volume),
             volume_gain: f32_atomic(1.0),
             hardware_volume: AtomicBool::new(false),
@@ -313,6 +339,56 @@ impl Engine {
     /// Source-clock frame index where each signal queued by [`Engine::play_signal`] started.
     pub fn signal_start_frames(&self) -> Vec<u64> {
         self.source.injection.lock().unwrap().started_at.clone()
+    }
+
+    /// Queue a mono signal (at the source rate) for the outputs alone: it is added after
+    /// capture, so the source device never plays it. It is scaled by the Windows software
+    /// volume, like everything else the outputs copy, and a muted output still discards it.
+    pub fn play_signal_to_outputs(&self, signal: Arc<Vec<f32>>) {
+        self.source
+            .fan_out
+            .lock()
+            .unwrap()
+            .injection
+            .queue
+            .push_back(signal);
+    }
+
+    /// Where each signal queued by [`Engine::play_signal_to_outputs`] started, counted in
+    /// frames handed to the outputs. The difference between two entries is the time between
+    /// them as long as capture lost nothing in between (see
+    /// [`Engine::capture_discontinuities`]).
+    pub fn output_signal_start_frames(&self) -> Vec<u64> {
+        self.source
+            .fan_out
+            .lock()
+            .unwrap()
+            .injection
+            .started_at
+            .clone()
+    }
+
+    /// While on, the outputs get none of the captured audio: only what
+    /// [`Engine::play_signal_to_outputs`] queues. The source's own level meter is unaffected.
+    /// Whoever turns this on must turn it off on every exit path.
+    pub fn set_outputs_isolated(&self, on: bool) {
+        self.source.isolated.store(on, Relaxed);
+    }
+
+    pub fn outputs_isolated(&self) -> bool {
+        self.source.isolated.load(Relaxed)
+    }
+
+    /// How many loopback packets arrived flagged as discontinuous since the engine started.
+    /// A measurement that sees this number move lost audio and cannot trust its timing.
+    pub fn capture_discontinuities(&self) -> u64 {
+        self.source.discontinuities.load(Relaxed)
+    }
+
+    /// The highest level captured from the source since the last call, 0..1, then reset.
+    /// Unlike [`Engine::source_level`] it has no fall time, so a silent stretch reads as zero.
+    pub fn take_source_peak(&self) -> f32 {
+        f32::from_bits(self.source.peak.swap(0, Relaxed))
     }
 
     pub fn add_output(&mut self, cfg: OutputConfig) -> Result<&OutputHandle> {
@@ -472,6 +548,8 @@ fn keepalive_loop(src: &SourceShared, device_id: &str) -> Result<()> {
                 _ => 1.0,
             };
             src.volume_gain.store(gain.to_bits(), Relaxed);
+            let carried = volume.as_ref().map_or(1.0, |v| v.loopback_gain());
+            src.loopback_gain.store(carried.to_bits(), Relaxed);
         }
         periods = periods.wrapping_add(1);
         let avail = client.get_available_space_in_frames()? as usize;
@@ -536,10 +614,16 @@ fn capture_loop(src: &SourceShared, device_id: &str) -> Result<()> {
     // Never hold more than this per output, in case a render side stalls.
     let max_samples = (MAX_DELAY_MS as usize + 1000) * fmt.rate / 1000 * fmt.channels;
     let mut level = 0f32;
+    let mut started = false;
     client.start_stream()?;
     while !src.stop.load(Relaxed) {
         while capture.get_next_packet_size()?.unwrap_or(0) > 0 {
-            capture.read_from_device_to_deque(&mut bytes)?;
+            let info = capture.read_from_device_to_deque(&mut bytes)?;
+            // The very first packet of a stream is always flagged; later ones mean lost audio.
+            if info.flags.data_discontinuity && started {
+                src.discontinuities.fetch_add(1, Relaxed);
+            }
+            started = true;
         }
         if !bytes.is_empty() {
             samples.clear();
@@ -553,6 +637,15 @@ fn capture_loop(src: &SourceShared, device_id: &str) -> Result<()> {
             let peak = samples.iter().fold(0f32, |m, s| m.max(s.abs()));
             level = peak.max(level * meter_decay(samples.len() / fmt.channels, fmt.rate));
             src.level.store(level.to_bits(), Relaxed);
+            // Non-negative floats order like their bit patterns, so this keeps the maximum.
+            src.peak.fetch_max(peak.to_bits(), Relaxed);
+            prepare_fan_out(
+                &mut samples,
+                fmt.channels,
+                src.isolated.load(Relaxed),
+                f32::from_bits(src.loopback_gain.load(Relaxed)),
+                &mut src.fan_out.lock().unwrap(),
+            );
             for out in src.outputs.read().unwrap().iter() {
                 let mut fifo = out.fifo.lock().unwrap();
                 fifo.extend(&samples);
@@ -566,6 +659,48 @@ fn capture_loop(src: &SourceShared, device_id: &str) -> Result<()> {
     }
     client.stop_stream()?;
     Ok(())
+}
+
+/// Turn one captured batch (interleaved, `channels` wide) into what the outputs get.
+///
+/// Outside a measurement this leaves the batch exactly as captured. When `isolated`, the
+/// captured audio is dropped. A queued signal is then added on every channel, scaled by
+/// `gain`, starting on the first frame after it was queued; the frame it started on is
+/// recorded on the fan-out clock, which advances by the batch's frame count either way.
+fn prepare_fan_out(
+    samples: &mut [f32],
+    channels: usize,
+    isolated: bool,
+    gain: f32,
+    fan: &mut FanOut,
+) {
+    let frames = samples.len() / channels;
+    if isolated {
+        samples.fill(0.0);
+    }
+    let inj = &mut fan.injection;
+    if inj.playing.is_some() || !inj.queue.is_empty() {
+        for (i, frame) in samples.chunks_exact_mut(channels).enumerate() {
+            if inj.playing.is_none() {
+                let Some(signal) = inj.queue.pop_front() else {
+                    break;
+                };
+                inj.started_at.push(fan.frame + i as u64);
+                inj.playing = Some((signal, 0));
+            }
+            if let Some((signal, pos)) = inj.playing.as_mut() {
+                let s = signal.get(*pos).copied().unwrap_or(0.0) * gain;
+                for sample in frame.iter_mut() {
+                    *sample += s;
+                }
+                *pos += 1;
+                if *pos >= signal.len() {
+                    inj.playing = None;
+                }
+            }
+        }
+    }
+    fan.frame += frames as u64;
 }
 
 /// Insert (positive) or drop (negative) `frames` of audio at the head of a FIFO.
@@ -818,6 +953,97 @@ mod tests {
         assert_eq!(short.back().copied(), Some(0.0));
         // Empty: nothing to do.
         fade_out_tail(&mut VecDeque::new(), 2, 4);
+    }
+
+    fn fan_with(signals: &[&[f32]]) -> FanOut {
+        let mut fan = FanOut::default();
+        for s in signals {
+            fan.injection.queue.push_back(Arc::new(s.to_vec()));
+        }
+        fan
+    }
+
+    #[test]
+    fn outside_a_measurement_the_fan_out_passes_audio_through_untouched() {
+        // The normal path: nothing queued, not isolated. Bit for bit what was captured.
+        let captured: Vec<f32> = (0..64).map(|i| (i as f32 * 0.37).sin()).collect();
+        let mut batch = captured.clone();
+        let mut fan = FanOut::default();
+        prepare_fan_out(&mut batch, 2, false, 0.5, &mut fan);
+        assert_eq!(
+            batch.iter().map(|s| s.to_bits()).collect::<Vec<_>>(),
+            captured.iter().map(|s| s.to_bits()).collect::<Vec<_>>()
+        );
+        assert_eq!(fan.frame, 32);
+        assert!(fan.injection.started_at.is_empty());
+    }
+
+    #[test]
+    fn an_isolated_fan_out_carries_the_signal_and_nothing_captured() {
+        let mut batch = vec![0.8f32; 12];
+        let mut fan = fan_with(&[&[0.1, 0.2, 0.3]]);
+        prepare_fan_out(&mut batch, 2, true, 1.0, &mut fan);
+        // The signal on both channels, then silence where the captured audio was.
+        assert_eq!(
+            batch,
+            [0.1, 0.1, 0.2, 0.2, 0.3, 0.3, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        );
+        assert_eq!(fan.injection.started_at, [0]);
+        // Isolation alone, with nothing queued, is plain silence.
+        let mut quiet = vec![0.8f32; 4];
+        prepare_fan_out(&mut quiet, 2, true, 1.0, &mut fan);
+        assert_eq!(quiet, [0.0; 4]);
+    }
+
+    #[test]
+    fn a_signal_is_mixed_over_captured_audio_when_not_isolated() {
+        let mut batch = vec![0.5f32; 6];
+        let mut fan = fan_with(&[&[0.25, -0.25]]);
+        prepare_fan_out(&mut batch, 2, false, 1.0, &mut fan);
+        assert_eq!(batch, [0.75, 0.75, 0.25, 0.25, 0.5, 0.5]);
+    }
+
+    #[test]
+    fn the_signal_follows_the_windows_volume_the_copies_carry() {
+        let mut batch = vec![0.0f32; 4];
+        let mut fan = fan_with(&[&[0.4, 0.4]]);
+        prepare_fan_out(&mut batch, 1, true, 0.5, &mut fan);
+        assert_eq!(batch, [0.2, 0.2, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn two_signals_are_timed_on_the_frames_handed_to_the_outputs() {
+        // Batches of uneven sizes, as loopback delivers them. The second signal is queued
+        // while the stream runs; its start is counted in frames, whatever the batching.
+        let signal: Vec<f32> = (1..=50).map(|i| i as f32).collect();
+        let mut fan = fan_with(&[&signal]);
+        let mut stream: Vec<f32> = Vec::new();
+        for (n, size) in [7usize, 13, 48, 5, 31, 64, 9, 40].into_iter().enumerate() {
+            if n == 4 {
+                fan.injection.queue.push_back(Arc::new(signal.clone()));
+            }
+            let mut batch = vec![0.0f32; size * 2];
+            prepare_fan_out(&mut batch, 2, true, 1.0, &mut fan);
+            stream.extend(batch.chunks_exact(2).map(|f| f[0]));
+        }
+        let starts = fan.injection.started_at.clone();
+        assert_eq!(starts, [0, 73]);
+        assert_eq!(fan.frame, 217);
+        // Each copy sits exactly where its recorded start says, whole and in order.
+        for start in starts {
+            let at = start as usize;
+            assert_eq!(&stream[at..at + 50], signal.as_slice());
+        }
+        assert!(stream[50..73].iter().all(|s| *s == 0.0));
+    }
+
+    #[test]
+    fn a_signal_queued_behind_another_starts_right_after_it() {
+        let mut fan = fan_with(&[&[1.0, 1.0], &[2.0]]);
+        let mut batch = vec![0.0f32; 5];
+        prepare_fan_out(&mut batch, 1, true, 1.0, &mut fan);
+        assert_eq!(batch, [1.0, 1.0, 2.0, 0.0, 0.0]);
+        assert_eq!(fan.injection.started_at, [0, 2]);
     }
 
     #[test]

@@ -42,36 +42,70 @@ wired outputs added in Tandem.
 
 ## 5. Microphone auto-sync
 
-11. Put the microphone where you listen, pick it in Sync, pause the music, run auto-sync.
-    **Expect:** two sweeps per pass, then "Done" with a delay close to the one found by ear in
-    step 2 (within a few milliseconds).
+Steps 11 and 12 are the mode that was confirmed in November 2026. Run them again after any
+change to auto-sync: they must still behave the same.
+
+11. Put the microphone where you listen, pick it in Sync, leave "Line up with" on "The
+    source", make sure nothing else is playing, run auto-sync.
+    **Expect:** two sweeps per pass, from the source and then from the source and the output,
+    then "Done" with a delay close to the one found by ear in step 2 (within a few
+    milliseconds).
 12. Run it again straight away. **Expect:** "Already in sync".
-13. With two wired outputs and a source you cannot hear: set "Line up with" to one of them and
-    run auto-sync on the other. **Expect:** "Done", and the clicks from both outputs merge.
-    The sweeps still come out of the source (outputs only copy it), which is why this step
-    needs a source the microphone cannot hear.
+13. **Line up with another output, with a source you can hear.** Two wired outputs, A and B,
+    plus the usual source (the Bluetooth amp), all audible from where the microphone is.
+    Sync A to the source first (step 11). Then in Sync, pick B, set "Line up with" to A, and
+    run auto-sync.
+    **Expect:**
+    - the sweeps come out of A, then of A and B. **The source stays silent** the whole time;
+    - "Done" (or "Already in sync");
+    - with the calibration clicks on afterwards, A and B sound as one blip;
+    - A's delay has not changed, unless the result says that A "now waits for" B, which
+      happens only when B is still late at 0 ms.
+14. Run step 13 again straight away. **Expect:** "Already in sync", and no delay moves.
+15. **Another program is playing.** Start music in a player and a video in a browser, both
+    audible. Open the Windows volume mixer (right-click the speaker icon > Open volume mixer)
+    to watch them. Run auto-sync as in step 11.
+    **Expect:**
+    - both programs go silent within a moment and show as muted in the mixer;
+    - the sweeps play alone, and the result is as good as in step 11;
+    - when it ends, with a result or with an error, both programs are audible again and
+      unmuted in the mixer, at the volume they had;
+    - a program that was already muted in the mixer before the run is still muted after it.
+16. Repeat step 15 with "Line up with" set as in step 13. **Expect:** the same, and nothing of
+    the music comes out of A or B during the measurement.
+17. **Tandem dies mid-measurement.** With music playing, run auto-sync and, while the sweeps
+    play, end `tandem.exe` from the Task Manager. The music program stays muted (that is the
+    case being tested). Start Tandem again.
+    **Expect:** within a few seconds of the window appearing, the music is audible again and
+    unmuted in the mixer. `%APPDATA%\com.vdouay.tandem\muted-sessions.json` exists while the
+    program is muted and is gone afterwards.
+18. **Automatic re-sync never silences anyone.** Turn on "Re-sync when a device reconnects".
+    With music playing, switch the amp off and on again.
+    **Expect:** the music keeps playing untouched and no sweep is heard. Pause the music:
+    a few seconds later the sweeps play and the delay is checked. If the music never stops,
+    nothing happens, and after ten minutes the re-sync is dropped.
 
 Result so far (maintainer's setup, November 2026): steps 11 and 12 passed. Auto-sync moved a
 delay that had been set by ear by 4 ms, the result sounds very good, and a second run
-answered "Already in sync". Step 13 has not been run as written: tried with a source that
-can be heard, the sweeps played on it as well, which is how the procedure is built.
+answered "Already in sync". That was before the sweeps of "Line up with" were moved off the
+source and before other programs were silenced: steps 13 to 18 have not been run yet.
 
 ## 6. Pause when nothing plays
 
-14. Turn it on (Settings > Audio), stop all sound and wait a little over two minutes.
+19. Turn it on (Settings > Audio), stop all sound and wait a little over two minutes.
     **Expect:** the status reads "Asleep until something plays".
-15. In an administrator terminal, run `powercfg /requests`. **Expect:** no audio stream listed
+20. In an administrator terminal, run `powercfg /requests`. **Expect:** no audio stream listed
     under SYSTEM for Tandem. Compare with the option off and Tandem running: an audio stream
     listed there is what keeps Windows awake. This has not been confirmed on any machine yet,
     so please report what you see either way.
-16. Play something. **Expect:** outputs join within about a second.
+21. Play something. **Expect:** outputs join within about a second.
 
 ## 7. Surround
 
-17. If the source is set to 5.1 or 7.1 in Windows and an output is stereo, play a film or a
+22. If the source is set to 5.1 or 7.1 in Windows and an output is stereo, play a film or a
     surround test. **Expect:** dialogue (centre channel) is audible on the stereo output.
 
 ## 8. Tray
 
-18. Click the tray icon. **Expect:** the popup opens next to it, fully on screen, also with the
+23. Click the tray icon. **Expect:** the popup opens next to it, fully on screen, also with the
     taskbar on another edge or another monitor.

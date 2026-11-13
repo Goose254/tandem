@@ -1,5 +1,13 @@
+// `unsafe` is denied in this crate. Two functions call Windows directly, where neither Tauri
+// nor the `windows` crate offers a safe way, and opt in one by one with the reason:
+// `settings::sys_locale_is_french` and `tray::round_corners`.
+#![deny(unsafe_code)]
+#![deny(unsafe_op_in_unsafe_fn)]
+#![deny(clippy::undocumented_unsafe_blocks)]
+
 mod calibration;
 mod commands;
+mod quiet;
 mod settings;
 mod state;
 mod supervisor;

@@ -19,6 +19,8 @@ pub struct AppState {
     pub calibrating: Mutex<Option<String>>,
     /// Version of an update the main window found, so the tray popup can mention it.
     pub update_notice: Mutex<Option<String>>,
+    /// Held while the record of muted programs (`quiet.rs`) is read and rewritten.
+    pub quiet_lock: Mutex<()>,
 }
 
 impl AppState {
@@ -32,6 +34,7 @@ impl AppState {
             status: Mutex::new(Snapshot::default()),
             calibrating: Mutex::new(None),
             update_notice: Mutex::new(None),
+            quiet_lock: Mutex::new(()),
         }
     }
 

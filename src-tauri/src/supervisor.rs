@@ -42,6 +42,14 @@ const STARTUP_GRACE: Duration = Duration::from_secs(10);
 const PAUSE_AFTER: Duration = Duration::from_secs(120);
 /// Peak level below which the source counts as silent (-80 dB: below any dither).
 const SILENCE: f32 = 1e-4;
+/// An automatic re-sync waits until the source has been this quiet (-60 dB) for this long:
+/// it never silences other programs, so it needs them to be silent on their own.
+const RESYNC_QUIET_LEVEL: f32 = 1e-3;
+const RESYNC_QUIET_FOR: Duration = Duration::from_secs(3);
+/// ... and is dropped if that never happens.
+const RESYNC_GIVE_UP: Duration = Duration::from_secs(600);
+/// How often to try lifting a mute left on another program (see `quiet.rs`).
+const QUIET_RECOVERY_EVERY: Duration = Duration::from_secs(30);
 /// Waking up from a pause is not a reconnect either.
 const WAKE_GRACE: Duration = Duration::from_secs(5);
 
@@ -128,6 +136,9 @@ struct Supervisor {
     /// The watched source's peak meter, by device id.
     meter: Option<(String, AudioMeterInformation)>,
     no_resync_until: Option<Instant>,
+    /// Last time the source carried anything audible, for the automatic re-sync.
+    last_source_audio: Instant,
+    next_quiet_recovery: Instant,
 }
 
 impl Supervisor {
@@ -145,6 +156,9 @@ impl Supervisor {
             paused: false,
             meter: None,
             no_resync_until: None,
+            last_source_audio: Instant::now(),
+            // Straight away at launch: this is what follows a crash mid-measurement.
+            next_quiet_recovery: Instant::now(),
         }
     }
 
@@ -480,13 +494,30 @@ impl Supervisor {
             });
         }
 
+        // ---- Programs left muted by a measurement that never finished ---------------------
+        if calibrating.is_none() && now >= self.next_quiet_recovery {
+            self.next_quiet_recovery = now + QUIET_RECOVERY_EVERY;
+            if crate::quiet::pending(&state.config_dir) {
+                crate::quiet::recover_leftovers(&state);
+            }
+        }
+
         // ---- Auto-sync after a reconnect ---------------------------------------------------
+        // It plays its sweeps with nobody at the keyboard, so it never mutes other programs:
+        // it waits for them to be quiet, and gives up after a while.
+        if source.state != SourceState::Running || source.level > RESYNC_QUIET_LEVEL {
+            self.last_source_audio = now;
+        }
+        let source_quiet = now - self.last_source_audio >= RESYNC_QUIET_FOR;
+        self.pending_resync
+            .retain(|_, due| now < *due + RESYNC_GIVE_UP);
         if calibrating.is_none() {
             let due: Option<String> = self
                 .pending_resync
                 .iter()
                 .find(|(id, at)| {
                     now >= **at
+                        && source_quiet
                         && outputs
                             .iter()
                             .any(|o| &o.device_id == *id && o.state == OutputState::Playing)

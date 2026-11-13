@@ -67,6 +67,11 @@ Three kinds of thread, all in Windows' shared mode (no exclusive access, no driv
   Windows hands it to the device, ahead of whatever latency the device adds afterwards. Every
   couple of milliseconds it appends the new samples to one FIFO per output. A FIFO is capped
   (the longest delay plus a second) so that a stalled output cannot grow it without bound.
+  A measurement can ask it for two more things on the way to the FIFOs (`prepare_fan_out`):
+  drop the captured audio, and add a test signal that the source device therefore never
+  plays. It counts the frames it hands to the outputs, which times such a signal the way the
+  keepalive counter times one played on the source. Outside a measurement the samples pass
+  through untouched.
 - **Render** (`render_loop`), one per output, wakes when its device wants audio, pulls 128
   source frames at a time from its FIFO through an asynchronous sinc resampler
   ([rubato](https://github.com/HEnquist/rubato)), mixes the channels to the output's layout,
@@ -192,19 +197,63 @@ Edge cases the procedure handles:
 
 - **The output is late even at 0 ms.** It cannot be played earlier, so auto-sync sets 0 ms and
   reports how late it still is ("limited"): the source is too fast for this output.
-- **A source nobody listens to** (several outputs of one interface, the source being an unused
-  one): the microphone cannot hear it. With a "Line up with" output chosen, that output plays
-  the part of the source in both sweeps, and the measurement is between the two outputs. If the
-  synced output is behind the reference even at 0 ms, the reference is delayed instead. The
-  sweeps still leave through the source, because outputs only ever copy what the source plays:
-  this mode assumes the microphone does not hear the source. With a source the microphone does
-  hear, both the source and the reference arrive twice and the analysis cannot tell which one
-  it is measuring against; that case is not handled.
-- **Mutes are restored on every exit path**, including failures, and a failed or interrupted
-  run never leaves auto-sync marked busy.
+- **Lining up with another output** ("Line up with"). That output plays the part of the
+  source in both sweeps, and the measurement is between the two outputs. If the synced output
+  is behind the reference even at 0 ms, the reference is delayed instead.
+
+  In this mode the sweeps never go through the source. They are handed to the outputs after
+  capture, and for the length of the measurement the outputs get nothing else, so each
+  unmuted output plays the sweep alone. This matters because the analysis takes as its anchor
+  the earliest arrival that shows up in both sweeps: if the source played them too and the
+  microphone heard it, the anchor could be the source and not the reference. Simulated on
+  synthetic recordings, that put the result off by the whole gap between source and
+  reference (170 ms in one case), and with the output already on the reference it moved the
+  reference by 30 ms. With the source silent only the reference arrives twice, whether or not
+  the microphone could have heard the source.
+
+  A sweep played this way is scaled by Windows' software volume, which everything else the
+  outputs copy already carries; otherwise it would come out at full level regardless of the
+  volume slider. Its two starts are timed in frames handed to the outputs. That count only
+  tells the time if no audio was lost, so a pass fails ("interrupted") when a loopback packet
+  arrives flagged as discontinuous or one of the two outputs has a dropout or a resync during
+  it. This check applies to this mode only; the source mode is as it was when it was
+  confirmed.
+- **Everything silenced is restored on every exit path**, including failures: the outputs'
+  mutes, the outputs' isolation from the source, and other programs (below). A failed or
+  interrupted run never leaves auto-sync marked busy.
+
+### Other programs during a measurement
+
+Music playing in another program would be picked up by the microphone and blur the result.
+
+- **A run started by hand mutes them.** `engine/src/sessions.rs` lists the audio sessions on
+  the devices the measurement uses (the source, the reference, the output being synced) and
+  mutes the ones that belong to another program, are playing, and were not already muted.
+  Tandem's own sessions and the system-sounds session are left alone. The list is looked at
+  again just before the second sweep, to catch a program that started in between. A muted
+  session leaves both the speaker and the loopback capture.
+- **Windows remembers a program's mute across restarts**, so a crash between mute and unmute
+  would silence a program for good. `src-tauri/src/quiet.rs` therefore writes the sessions to
+  `muted-sessions.json` (next to the settings) *before* muting them, unmutes and strikes them
+  out on every exit path, and at launch (then every 30 seconds while the file exists) unmutes
+  whatever is still listed. A program that is not running then stays listed until it is seen
+  again, since Windows will hand it back its old mute. If the file cannot be written, nothing
+  is muted.
+- **An automatic re-sync never touches the mixer.** Nobody asked for it at that moment, so
+  silencing their music would be wrong. The supervisor only starts it once the source has
+  been quiet for three seconds, and drops it after ten minutes of sound. The measurement
+  itself listens to the loopback in the gaps where nothing of ours plays and gives up
+  ("something was playing") if it hears anything.
+
+This is the only place where Tandem writes to the Windows mixer. Microsoft's guidance is that
+an application should not control another application's session; the documented ways to
+reach a session's mute only cover one's own. Asking the session control from the session
+enumerator for it is what volume mixers do and works, but is not spelled out in the
+reference, so a session that refuses is skipped.
 
 Failures are reported as codes the UI translates: no microphone, microphone missing or
-unusable, output not playing, sweep not heard, output not heard, recording too short.
+unusable, output not playing, reference not playing, sweep not heard, output not heard,
+recording too short, measurement interrupted, something else was playing, already running.
 
 ## The supervisor
 
@@ -269,6 +318,10 @@ directory (`%APPDATA%\com.vdouay.tandem\`).
 - **Forward compatible:** every field has a default, so older files load. A change in the
   *meaning* of a field needs a version bump and a migration.
 
+A second, short-lived file can sit next to it: `muted-sessions.json`, the record of programs
+muted for a measurement (see [Other programs during a
+measurement](#other-programs-during-a-measurement)). It exists only while something is muted.
+
 ## The UI
 
 - `src/lib/ipc.ts` is the only door to the Rust side: typed wrappers over the Tauri commands
@@ -317,11 +370,15 @@ honest split.
 
 | Area | Automated (`cargo test`, on Windows) | Only on hardware, by hand |
 |---|---|---|
-| Calibration analysis | Synthetic recordings: an output late, early, or 2 ms away; louder than the source; a reflection stronger than the direct sound; heavy noise; a missing output; pure noise; recordings cut short (`calibrate.rs`) | A real room, speaker and microphone. Confirmed in November 2026: auto-sync landed 4 ms from a delay set by ear (checklist step 11). Lining up with another output (step 13) is **not yet confirmed.** |
+| Calibration analysis | Synthetic recordings: an output late, early, or 2 ms away; louder than the source; a reflection stronger than the direct sound; heavy noise; a missing output; pure noise; recordings cut short (`calibrate.rs`) | A real room, speaker and microphone. Confirmed in November 2026: auto-sync landed 4 ms from a delay set by ear (checklist step 11). Lining up with another output (steps 13 and 14) is **not yet confirmed.** |
+| Sweeps for the outputs alone | The fan-out passes audio through bit for bit outside a measurement; isolated, it carries the signal and nothing captured; two signals are timed in frames whatever the batching; the signal follows the software volume (`engine.rs`). `tandem-cli probe` on two devices nobody hears: the sweep reached the output, the source captured nothing, no discontinuity | That the sweeps are heard from the outputs and not from the source, and that the result is right (steps 13 and 14). **Not yet confirmed.** |
+| Muting other programs | Which sessions are muted, and how a remembered one is found again (`sessions.rs`); the record is written before the mute, emptied on a normal end, survives a crash and is replayed at launch, keeps a program that quit until it comes back, mutes nothing if it cannot be written (`quiet.rs`). Listing sessions runs read-only on the default device. `tandem-cli quiet-probe` muted and unmuted a stand-in program on a device nobody hears | Real programs in a real run, and the recovery after Tandem is killed (steps 15 to 18). **Not yet confirmed.** |
+| Volume split (software or hardware) | The gain arithmetic for both kinds of device, mute and a slider at zero; the real calls run read-only on the default device (`sys.rs`) | |
 | Drift controller | A simulated clock mismatch of +100 and −80 ppm with packet-sized jitter settles on target; a large error triggers a resync (`control.rs`) | Real clocks over a long listen (step 3 of the hardware checklist) |
 | Channel mixing | Identity, mono, stereo, 5.1 and 7.1 folds (`mix.rs`) | A surround source on stereo speakers |
 | FIFO shifts, underrun fade, clicks | Unit tests on the buffer helpers (`engine.rs`) | Dropouts under CPU load |
 | Thread priority | One test asks Windows for the "Pro Audio" class (`sys.rs`) | Whether it prevents dropouts under load |
+| `unsafe` code | Denied crate-wide in both crates. Ten blocks remain, all direct Windows calls with no safe wrapper, each with a `SAFETY:` note: four in `sys.rs`, four in `sessions.rs`, one each in `settings.rs` and `tray.rs`. Every one but the corner rounding and the session mute runs in a test | The tray popup's rounded corners; the session mute (`tandem-cli quiet-probe`) |
 | Settings | Round trip, old and partial files, unreadable and newer files kept aside, per-source delays (`settings.rs`) | |
 | Supervisor | Only its pure helpers: finding a device by id then name, sorting errors into kinds | The reconciliation loop itself: disconnects, reconnects, a changed default device, sleep and wake |
 | Capture, render, keepalive threads | Nothing: they need devices | Everything |

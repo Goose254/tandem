@@ -121,6 +121,8 @@ export type Failure =
   | "micFailed"
   | "notRunning"
   | "referenceNotRunning"
+  | "interrupted"
+  | "otherAudio"
   | "sourceNotHeard"
   | "targetNotHeard"
   | "tooShort"

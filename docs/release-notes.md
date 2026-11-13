@@ -1,3 +1,3 @@
-- The boxes on the Outputs and Sync screens now grow with the window
-- The update card's buttons no longer spill out of it, notably in French
-- The update card can no longer appear see-through
+- "Line up with" now plays its sweeps on the two outputs only: the source stays silent, so it works with a source you can hear
+- Auto-sync silences your other programs while it measures, and gives them their sound back afterwards
+- The automatic re-sync after a reconnect waits until nothing is playing, and never silences anything on its own

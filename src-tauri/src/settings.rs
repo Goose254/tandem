@@ -145,11 +145,18 @@ fn default_locale() -> String {
     }
 }
 
+/// Whether Windows itself is displayed in French, for the language of a first launch. The
+/// standard library has no way to ask, hence the direct call.
 #[cfg(windows)]
+#[allow(unsafe_code)]
 fn sys_locale_is_french() -> bool {
     use windows::Win32::Globalization::GetUserDefaultUILanguage;
+    // SAFETY: the function takes no argument, has no precondition and cannot fail: it
+    // returns the language id of the current user. It is `unsafe` only because the bindings
+    // mark every Windows function so.
+    let language = unsafe { GetUserDefaultUILanguage() };
     // Primary language id 0x0C = French.
-    (unsafe { GetUserDefaultUILanguage() } & 0x3ff) == 0x0c
+    (language & 0x3ff) == 0x0c
 }
 
 #[cfg(not(windows))]
@@ -263,6 +270,14 @@ mod tests {
         assert_eq!(s.version, SETTINGS_VERSION);
         assert!(dir.join("settings.v99.json").exists());
         let _ = fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn a_first_launch_picks_one_of_the_two_languages() {
+        // Runs the Windows call behind `sys_locale_is_french`.
+        let _ = sys_locale_is_french();
+        assert!(["en", "fr"].contains(&default_locale().as_str()));
+        assert!(["en", "fr"].contains(&Settings::default().locale.as_str()));
     }
 
     #[test]

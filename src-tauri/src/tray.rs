@@ -227,23 +227,35 @@ fn position_popup(app: &AppHandle, window: &WebviewWindow, click: PhysicalPositi
 }
 
 /// Windows 11 rounds frameless windows only when asked.
+///
+/// Tauri's own way to get round corners on a frameless window is `set_shadow(true)`, which
+/// also draws a shadow and a one-pixel border; asking the window manager directly rounds the
+/// corners and nothing else. That call has no safe wrapper.
 #[cfg(windows)]
+#[allow(unsafe_code)]
 pub fn round_corners(window: &WebviewWindow) {
     use windows::Win32::Foundation::HWND;
     use windows::Win32::Graphics::Dwm::{
-        DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DwmSetWindowAttribute,
+        DWM_WINDOW_CORNER_PREFERENCE, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+        DwmSetWindowAttribute,
     };
-    if let Ok(hwnd) = window.hwnd() {
-        let pref = DWMWCP_ROUND;
-        unsafe {
-            let _ = DwmSetWindowAttribute(
-                HWND(hwnd.0 as _),
-                DWMWA_WINDOW_CORNER_PREFERENCE,
-                &pref as *const _ as *const _,
-                std::mem::size_of_val(&pref) as u32,
-            );
-        }
-    }
+    let Ok(hwnd) = window.hwnd() else {
+        return;
+    };
+    let preference: DWM_WINDOW_CORNER_PREFERENCE = DWMWCP_ROUND;
+    // SAFETY: `hwnd` is the handle of `window`, which is alive for the whole call (we hold a
+    // reference to it). For `DWMWA_WINDOW_CORNER_PREFERENCE` Windows reads exactly one
+    // `DWM_WINDOW_CORNER_PREFERENCE` from the pointer: it points at `preference`, a live
+    // local of that type, and the size passed is that type's size. Windows only reads it.
+    // A failure (an older Windows without this attribute) is ignored: corners stay square.
+    let _ = unsafe {
+        DwmSetWindowAttribute(
+            HWND(hwnd.0 as _),
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            (&raw const preference).cast(),
+            size_of::<DWM_WINDOW_CORNER_PREFERENCE>() as u32,
+        )
+    };
 }
 
 #[cfg(not(windows))]
