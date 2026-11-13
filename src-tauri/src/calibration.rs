@@ -184,7 +184,7 @@ fn run(app: &AppHandle, device_id: &str, automatic: bool) {
         };
         let wanted = delay as f64 - offset * 1000.0;
         let new_delay = wanted.round().max(MIN_DELAY_MS as f64) as u32;
-        apply_delay(&state, device_id, new_delay);
+        apply_and_announce(app, &state, device_id, new_delay);
         last.pass = pass;
         last.offset_ms = Some(offset * 1000.0);
         last.delay_ms = Some(new_delay);
@@ -195,7 +195,7 @@ fn run(app: &AppHandle, device_id: &str, automatic: bool) {
         {
             // The output is behind the reference even at 0 ms: hold the reference back.
             let moved = ((ref_delay as f64 + short).round() as u32).min(MAX_DELAY_MS);
-            apply_delay(&state, reference, moved);
+            apply_and_announce(app, &state, reference, moved);
             last.reference_delay_ms = Some(moved);
         } else if short > 0.5 {
             // Even at 0 ms the output lags: no delay can fix that, only a slower source.
@@ -264,6 +264,14 @@ pub fn apply_delay(state: &AppState, device_id: &str, ms: u32) {
             o.set_delay_for(source.as_deref(), ms);
         }
     });
+}
+
+/// Apply a delay auto-sync found, and send the settings to every window. The UI shows each
+/// delay from the settings it was last sent, so without this the audio would move while the
+/// number on screen stayed where it was.
+fn apply_and_announce(app: &AppHandle, state: &AppState, device_id: &str, ms: u32) {
+    apply_delay(state, device_id, ms);
+    let _ = app.emit("settings", state.settings());
 }
 
 /// The output to sync against instead of the source, when one is set and usable.

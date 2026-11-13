@@ -492,6 +492,8 @@ impl Supervisor {
                     }
                 }
             });
+            // The windows key each output by its device id: tell them it changed.
+            let _ = app.emit("settings", state.settings());
         }
 
         // ---- Programs left muted by a measurement that never finished ---------------------
