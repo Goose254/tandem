@@ -116,6 +116,19 @@ These need Tandem as a new installation would see it, without losing your settin
 Tandem, then start it from a terminal with an empty settings folder (your own settings are
 not touched, and come back when you start Tandem normally).
 
+In PowerShell:
+
+```powershell
+$env:TANDEM_CONFIG_DIR = Join-Path $env:TEMP ("tandem-first-run-" + (Get-Date -Format HHmmss)); New-Item -ItemType Directory -Force $env:TANDEM_CONFIG_DIR | Out-Null; .\target\release\tandem.exe
+```
+
+The variable stays set in that terminal: `.\target\release\tandem.exe` alone starts Tandem
+again on the *same* folder (step 26), the full line starts it on a new empty one, and
+`Remove-Item Env:TANDEM_CONFIG_DIR` goes back to your own settings. Tandem started from the
+Start menu always uses your own.
+
+In Git Bash:
+
 ```bash
 TANDEM_CONFIG_DIR="$(mktemp -d)" ./target/release/tandem.exe
 ```

@@ -231,6 +231,10 @@ Automated checks do not cover real audio hardware, so say what was and was not v
   TANDEM_CONFIG_DIR="$(mktemp -d)" npm run tauri dev
   ```
 
+  That line is for Git Bash. In PowerShell, set the variable first:
+  `$env:TANDEM_CONFIG_DIR = "<an empty folder>"`, then `npm run tauri dev`; it stays set in
+  that terminal until `Remove-Item Env:TANDEM_CONFIG_DIR`.
+
   It opens on the guide. Outputs added there play on real devices, so say so first.
 - **Everything else** (Bluetooth, a real microphone, disconnects, sleep, the tray on other
   taskbar positions): docs/hardware-test.md, run by the maintainer.
