@@ -18,7 +18,9 @@
 
 .speakers {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 44px;
+  /* Names take the room they need; the sound sits in the middle of what is left, half way
+     between the speakers and the microphone. */
+  grid-template-columns: fit-content(62%) minmax(44px, 1fr);
   align-items: center;
   gap: 8px 6px;
   flex: 1;
@@ -119,6 +121,7 @@
 /* Sound leaving a speaker: three arcs. */
 .waves {
   display: block;
+  justify-self: center;
   width: 44px;
   height: 20px;
 }
