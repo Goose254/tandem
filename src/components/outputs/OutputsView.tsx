@@ -32,9 +32,6 @@ function CauseIcon({ kind }: { kind: ErrorKind }) {
 export function OutputsView() {
   const t = useT();
   const settings = useStore((s) => s.settings);
-  const status = useStore((s) => s.status);
-  const removed = useStore((s) => s.removed);
-  const undoRemove = useStore((s) => s.undoRemove);
   if (!settings) return null;
 
   return (
@@ -53,10 +50,35 @@ export function OutputsView() {
           </>
         }
       />
-      <Section label={t((d) => d.outputs.sourceLabel)}>
-        <SourceCard />
-      </Section>
-      <Section label={t((d) => d.outputs.outputsLabel)} trailing={<AddOutput />}>
+      <SourceSection />
+      <OutputsSection />
+    </div>
+  );
+}
+
+/** The source: which device is captured, and how that is going. Also a step of the guide. */
+export function SourceSection() {
+  const t = useT();
+  return (
+    <Section label={t((d) => d.outputs.sourceLabel)}>
+      <SourceCard />
+    </Section>
+  );
+}
+
+/**
+ * The outputs: the list with each one's controls, "Add output", and the undo line after a
+ * removal. Also a step of the guide.
+ */
+export function OutputsSection() {
+  const t = useT();
+  const settings = useStore((s) => s.settings)!;
+  const status = useStore((s) => s.status);
+  const removed = useStore((s) => s.removed);
+  const undoRemove = useStore((s) => s.undoRemove);
+
+  return (
+    <Section label={t((d) => d.outputs.outputsLabel)} trailing={<AddOutput />}>
         {removed ? (
           <Notice action={<QuietButton onClick={undoRemove}>{t((d) => d.outputs.undo)}</QuietButton>}>
             {t((d) => d.outputs.removed, { name: removed.device.name })}
@@ -80,8 +102,7 @@ export function OutputsView() {
             ))}
           </div>
         )}
-      </Section>
-    </div>
+    </Section>
   );
 }
 

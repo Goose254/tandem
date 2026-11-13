@@ -109,3 +109,26 @@ source and before other programs were silenced: steps 13 to 18 have not been run
 
 23. Click the tray icon. **Expect:** the popup opens next to it, fully on screen, also with the
     taskbar on another edge or another monitor.
+
+## 9. First run
+
+These need Tandem as a new installation would see it, without losing your settings: quit
+Tandem, then start it from a terminal with an empty settings folder (your own settings are
+not touched, and come back when you start Tandem normally).
+
+```bash
+TANDEM_CONFIG_DIR="$(mktemp -d)" ./target/release/tandem.exe
+```
+
+24. **Expect:** the window opens on "Getting started", step 1 of 5, and no sound plays.
+25. Go through the steps: keep the source, add an output, set its delay by ear or with the
+    microphone, finish. **Expect:** each step shows the same controls as the Outputs and Sync
+    screens; clicks and sweeps only play when you turn the clicks on or press "Run
+    auto-sync"; after "Finish" the Outputs screen shows what you set up.
+26. Start again with a new empty folder, go to step 3, close Tandem from the tray, start it
+    again with the *same* folder. **Expect:** it reopens on step 3. Add an output, close the
+    window (not from the tray), open it again from the tray: the guide is gone.
+27. Switch the source's device off while on step 2 or 4. **Expect:** the same "Not connected"
+    state as on the Outputs screen, and the guide carries on when it comes back.
+28. Start Tandem normally, with your own settings. **Expect:** no guide, everything as you
+    left it. Settings > Getting started > "Show it again" opens it.

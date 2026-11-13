@@ -16,27 +16,39 @@ const SOURCE = "";
 
 export function SyncView() {
   const t = useT();
+  const setView = useStore((s) => s.setView);
+  return (
+    <div className={styles.view}>
+      <ViewHeader title={t((d) => d.sync.title)} sub={t((d) => d.sync.sub)} />
+      <SyncPanel onNeedOutputs={() => setView("outputs")} />
+    </div>
+  );
+}
+
+/**
+ * Lining an output up, by ear or with a microphone: the output picker and the two cards.
+ * The Sync screen is this under a header; the guide shows the same thing as one of its steps.
+ * `onNeedOutputs` is where "there is no output yet" sends the user.
+ */
+export function SyncPanel({ onNeedOutputs }: { onNeedOutputs: () => void }) {
+  const t = useT();
   const locale = useLocale();
   const settings = useStore((s) => s.settings)!;
   const status = useStore((s) => s.status);
   const syncTarget = useStore((s) => s.syncTarget);
   const setSyncTarget = useStore((s) => s.setSyncTarget);
-  const setView = useStore((s) => s.setView);
   const clicks = status?.clicks ?? false;
 
-  // Never leave the clicks running once the user walks away from this view.
+  // Never leave the clicks running once the user walks away from this part.
   useEffect(() => () => void ipc.setClicks(false).catch(() => {}), []);
 
   if (settings.outputs.length === 0) {
     return (
-      <div className={styles.view}>
-        <ViewHeader title={t((d) => d.sync.title)} sub={t((d) => d.sync.sub)} />
-        <EmptyState
-          title={t((d) => d.sync.emptyTitle)}
-          line={t((d) => d.sync.emptyLine)}
-          action={<PrimaryButton onClick={() => setView("outputs")}>{t((d) => d.sync.goOutputs)}</PrimaryButton>}
-        />
-      </div>
+      <EmptyState
+        title={t((d) => d.sync.emptyTitle)}
+        line={t((d) => d.sync.emptyLine)}
+        action={<PrimaryButton onClick={onNeedOutputs}>{t((d) => d.sync.goOutputs)}</PrimaryButton>}
+      />
     );
   }
 
@@ -46,8 +58,7 @@ export function SyncView() {
   const delay = delayFor(target, status?.source.deviceId);
 
   return (
-    <div className={styles.view}>
-      <ViewHeader title={t((d) => d.sync.title)} sub={t((d) => d.sync.sub)} />
+    <>
       {settings.outputs.length > 1 ? (
         <SegmentedControl
           value={id}
@@ -77,7 +88,7 @@ export function SyncView() {
         </Card>
         <MicCard deviceId={id} playing={outStatus?.state === "playing"} />
       </div>
-    </div>
+    </>
   );
 }
 

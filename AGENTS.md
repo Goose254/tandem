@@ -38,6 +38,8 @@ Key files:
   of programs muted for a measurement. `settings.rs`: the settings file.
   `tray.rs`: tray menu, popup placement, and the tray icon drawn in code.
 - `src/state/store.ts`: app state. `src/state/updater.ts` and `src/lib/updater.ts`: updates.
+- `src/components/guide/`: the first-run guide. It composes parts of the other screens
+  (`SourceSection`, `OutputsSection`, `SyncPanel`, `AutostartRow`) and adds no logic.
 
 ## Commands
 
@@ -87,6 +89,11 @@ Requirements: Windows 10 or 11, Rust (MSVC toolchain, edition 2024), Node 20 or 
   controls elsewhere, no boxes around settings rows.
 - Every user-facing string exists in both `src/i18n/en.ts` and `src/i18n/fr.ts` with the same
   keys. The tray menu and tooltip strings are in `src-tauri/src/tray.rs`.
+- The guide must stay a composition. A step shows the same part the Outputs, Sync or Settings
+  screen shows, driving the same store and commands; when a screen changes, the guide follows
+  without being touched. Do not give it a second way to add an output, set a delay or run
+  auto-sync. Nothing in it starts a sound on its own: clicks and sweeps start from the switch
+  and the button of the Sync part.
 - A drawing never carries what the text beside it does not. The sentence is the source of
   truth; drawings are `aria-hidden`; an auto-sync outcome is announced once, through the live
   region in `SyncView.tsx`. Colours come from the tokens (the warn tone marks the part to fix).
@@ -141,6 +148,14 @@ Requirements: Windows 10 or 11, Rust (MSVC toolchain, edition 2024), Node 20 or 
   older files still load. If the meaning of an existing field changes, bump `SETTINGS_VERSION`
   in `src-tauri/src/settings.rs` and migrate in `Settings::load`.
 - An unreadable file is copied to `settings.unreadable.json` before defaults replace it.
+- `guide_step` is where the first-run guide is: a step number while it is pending, `null` once
+  finished or skipped. A file from before the guide existed has no such field: it is read as
+  finished if it has outputs and as pending if it has none. A recorded step is kept even once
+  outputs exist, so the guide resumes after a restart. Closing the window with an output set
+  up finishes it.
+- Never delete, move or overwrite the maintainer's settings file to get a fresh state. Set
+  the `TANDEM_CONFIG_DIR` environment variable to an empty folder: the app then keeps its
+  settings there. Only one Tandem can run at a time, so theirs has to be quit first, by them.
 
 ## The icon
 
@@ -176,7 +191,10 @@ Automated checks do not cover real audio hardware, so say what was and was not v
   Any state can be opened directly: `?sync=<state>` for auto-sync (each step of a running
   pass, each ending, each failure, each reason the Run button is unavailable),
   `?outputs=<state>` for the Outputs screen, `?view=settings&autostart=fail`, and `?autorun=1`
-  to start a simulated run by itself. The names are listed at the top of `src/lib/mock.ts`;
+  to start a simulated run by itself. `?firstRun=1` is a new installation (no output, the
+  guide at its first step), `?firstRun=noDevices` one with no other playback device,
+  `?firstRun=noMic` the guide on a machine without a microphone, and `?guide=<0..4>` opens the
+  guide at a step. The names are listed at the top of `src/lib/mock.ts`;
   add a name there whenever a new state is added to the UI.
   The demo build (`npm run build:demo`) takes the same switches.
   In the preview, commit typed values with real key presses (type, then Enter).
@@ -206,6 +224,14 @@ Automated checks do not cover real audio hardware, so say what was and was not v
     writes to the Windows mixer and keeps no record: use it only on a device nobody hears,
     with a stand-in program (a second `tandem-cli run` on that device), and check with
     `sessions` first that the stand-in is the only one it would mute.
+- **The real app as a new installation would see it:** quit any running Tandem (the
+  maintainer's is theirs to quit), then start it with an empty settings folder:
+
+  ```bash
+  TANDEM_CONFIG_DIR="$(mktemp -d)" npm run tauri dev
+  ```
+
+  It opens on the guide. Outputs added there play on real devices, so say so first.
 - **Everything else** (Bluetooth, a real microphone, disconnects, sleep, the tray on other
   taskbar positions): docs/hardware-test.md, run by the maintainer.
 
@@ -219,7 +245,8 @@ three-note icon; in-app updates (1.0.1); the first published release (1.0.2); au
 keeps "Line up with" sweeps off the source and silences other programs for a measurement
 started by hand (branch `sync-quiet`, not merged); a drawing for every auto-sync state, the
 busy indicator redrawn from the mark, causes shown on device errors (branch `sync-feedback`,
-on top of `sync-quiet`, not merged).
+on top of `sync-quiet`, not merged); a first-run guide in five steps (branch `first-run`, on
+top of `sync-feedback`, not merged).
 
 Known gaps:
 

@@ -52,6 +52,9 @@ No virtual audio cable or driver is needed.
 - **Tray icon** with a status popup and a quick on/off switch. Close-to-tray, launch at login,
   start hidden.
 - **Updates itself** from the GitHub releases, when you say so.
+- **A guide on first launch** takes you through the source, the outputs and lining them up, and
+  says why the slowest device has to be the source. Skip it, leave it and come back, or reopen
+  it from Settings.
 - English and French, light and dark themes (follows the system by default).
 
 **Experimental** means built and, where a computer can check it, tested, but **not yet

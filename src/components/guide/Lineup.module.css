@@ -1,0 +1,86 @@
+/* The guide's picture of speakers out of step, then in step. Tokens only; see Lineup.tsx. */
+.lineup {
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.lineup svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.name,
+.nameStrong,
+.tag,
+.waitLabel {
+  font-size: 12px;
+  font-weight: 550;
+  fill: var(--ink-2);
+}
+
+.nameStrong {
+  font-weight: 650;
+  fill: var(--ink);
+}
+
+.tag,
+.waitLabel {
+  font-size: 10.5px;
+  font-weight: 500;
+  fill: var(--ink-3);
+}
+
+.axis {
+  stroke: var(--ink-3);
+  stroke-width: 2;
+  stroke-linecap: round;
+  opacity: 0.35;
+}
+
+/* The moment the source's sound comes out: what every output is lined up on. */
+.mark,
+.markFaint {
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 2 5;
+}
+
+.markFaint {
+  opacity: 0.4;
+}
+
+.dotSource {
+  fill: var(--accent);
+}
+
+.dot {
+  fill: var(--good);
+}
+
+.ghost {
+  fill: none;
+  stroke: var(--ink-3);
+  stroke-width: 1.5;
+  stroke-dasharray: 2.5 2.5;
+}
+
+.wait {
+  stroke: var(--ink-3);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 1 5;
+}
+
+/* An output slides from where it would play on its own to the mark, once. */
+.slide {
+  animation: lineup-slide 1.3s var(--ease-cover) 0.5s both;
+}
+
+@keyframes lineup-slide {
+  from {
+    transform: translateX(var(--from));
+  }
+}

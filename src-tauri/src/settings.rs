@@ -10,6 +10,14 @@ pub const DEFAULT_DELAY_MS: u32 = 200;
 /// Format version written to the settings file. Bump it with a migration in
 /// [`Settings::load`] whenever the meaning of an existing field changes.
 pub const SETTINGS_VERSION: u32 = 1;
+/// The steps of the first-run guide are numbered from 0 to this.
+pub const LAST_GUIDE_STEP: u8 = 4;
+/// What `guide_step` reads as in a file written before the guide existed.
+const GUIDE_NOT_RECORDED: u8 = u8::MAX;
+
+fn guide_not_recorded() -> Option<u8> {
+    Some(GUIDE_NOT_RECORDED)
+}
 
 /// A device remembered by id, with its name as a fallback: Windows sometimes re-creates a
 /// Bluetooth endpoint with a new id after re-pairing, while the name stays the same.
@@ -112,6 +120,12 @@ pub struct Settings {
     pub locale: String,
     pub close_to_tray: bool,
     pub start_minimized: bool,
+    /// The first-run guide: the step it is at while it is pending, `None` once it has been
+    /// finished or skipped. A new installation starts at step 0. A file written before the
+    /// guide existed says nothing: it is read as finished if it already has outputs (someone
+    /// set Tandem up without it) and as pending otherwise (see [`Settings::load`]).
+    #[serde(default = "guide_not_recorded")]
+    pub guide_step: Option<u8>,
 }
 
 impl Default for Settings {
@@ -132,6 +146,7 @@ impl Default for Settings {
             locale: default_locale(),
             close_to_tray: true,
             start_minimized: true,
+            guide_step: Some(0),
         }
     }
 }
@@ -188,6 +203,7 @@ impl Settings {
                 }
                 // Versions 0 and 1 share one layout: nothing to migrate yet.
                 settings.version = SETTINGS_VERSION;
+                settings.settle_guide();
                 settings
             }
             Err(_) => {
@@ -206,6 +222,25 @@ impl Settings {
             serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?,
         )?;
         fs::rename(tmp, Self::path(dir))
+    }
+
+    /// True when closing the window should count as finishing the guide: it is pending and
+    /// at least one output is set up.
+    pub fn guide_done_by_closing(&self) -> bool {
+        self.guide_step.is_some() && !self.outputs.is_empty()
+    }
+
+    /// Decide what a file that predates the guide means for it, and keep the step in range.
+    /// Only the "not recorded" case looks at the outputs: a guide that is recorded as pending
+    /// stays pending even once outputs exist, so that leaving it halfway and coming back
+    /// resumes it.
+    fn settle_guide(&mut self) {
+        self.guide_step = match self.guide_step {
+            Some(GUIDE_NOT_RECORDED) if self.outputs.is_empty() => Some(0),
+            Some(GUIDE_NOT_RECORDED) => None,
+            Some(step) => Some(step.min(LAST_GUIDE_STEP)),
+            None => None,
+        };
     }
 
     pub fn output_mut(&mut self, id: &str) -> Option<&mut OutputSetting> {
@@ -278,6 +313,69 @@ mod tests {
         let _ = sys_locale_is_french();
         assert!(["en", "fr"].contains(&default_locale().as_str()));
         assert!(["en", "fr"].contains(&Settings::default().locale.as_str()));
+    }
+
+    fn load_text(name: &str, text: &str) -> Settings {
+        let dir = std::env::temp_dir().join(format!("tandem-test-{name}-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("settings.json"), text).unwrap();
+        let s = Settings::load(&dir);
+        let _ = fs::remove_dir_all(dir);
+        s
+    }
+
+    #[test]
+    fn closing_the_window_finishes_the_guide_only_once_an_output_exists() {
+        let mut s = Settings::default();
+        assert!(!s.guide_done_by_closing());
+        s.outputs.push(OutputSetting::default());
+        assert!(s.guide_done_by_closing());
+        s.guide_step = None;
+        assert!(!s.guide_done_by_closing());
+    }
+
+    #[test]
+    fn a_new_installation_starts_the_guide() {
+        let dir = std::env::temp_dir().join(format!("tandem-test-fresh-{}", std::process::id()));
+        assert_eq!(Settings::load(&dir).guide_step, Some(0));
+    }
+
+    #[test]
+    fn an_installation_set_up_before_the_guide_existed_never_sees_it() {
+        let s = load_text(
+            "guide-old",
+            r#"{"outputs":[{"device":{"id":"a","name":"A"}}]}"#,
+        );
+        assert_eq!(s.guide_step, None);
+    }
+
+    #[test]
+    fn an_older_installation_with_nothing_set_up_gets_the_guide() {
+        assert_eq!(
+            load_text("guide-empty", r#"{"outputs":[]}"#).guide_step,
+            Some(0)
+        );
+    }
+
+    #[test]
+    fn a_guide_left_halfway_resumes_where_it_was_even_with_outputs() {
+        let s = load_text(
+            "guide-resume",
+            r#"{"guideStep":3,"outputs":[{"device":{"id":"a","name":"A"}}]}"#,
+        );
+        assert_eq!(s.guide_step, Some(3));
+    }
+
+    #[test]
+    fn a_finished_guide_stays_finished_and_a_wild_step_is_brought_back_in_range() {
+        assert_eq!(
+            load_text("guide-done", r#"{"guideStep":null}"#).guide_step,
+            None
+        );
+        assert_eq!(
+            load_text("guide-wild", r#"{"guideStep":99}"#).guide_step,
+            Some(LAST_GUIDE_STEP)
+        );
     }
 
     #[test]

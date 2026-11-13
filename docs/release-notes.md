@@ -4,3 +4,4 @@
 - Auto-sync shows what it is doing and how it ended with a drawing: which speaker is playing, how far the output moved, or which part to fix
 - Auto-sync says why it can't start when it can't, and the delay on screen now follows its result
 - Device errors show their cause, and an automatic re-sync leaves a note on the output it touched
+- A guide on first launch: the source, the outputs, lining them up, in five short steps you can skip or reopen from Settings

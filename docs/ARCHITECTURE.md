@@ -317,6 +317,15 @@ directory (`%APPDATA%\com.vdouay.tandem\`).
   `settings.v<N>.json`, because this version would drop the fields it does not know.
 - **Forward compatible:** every field has a default, so older files load. A change in the
   *meaning* of a field needs a version bump and a migration.
+- **The first-run guide's place** is `guide_step`: a step number while the guide is pending,
+  `null` once it is finished or skipped. It is new, not a changed field, so the version did
+  not move. A file from before it existed says nothing about it and is read by what it
+  holds: with outputs, someone set Tandem up without the guide, so it is finished; with none,
+  it is pending. A step that is recorded is respected whatever the outputs, which is what lets
+  the guide resume. Closing the window with an output set up marks it finished.
+- **Somewhere else.** When the `TANDEM_CONFIG_DIR` environment variable names a folder, the
+  settings live there and not in `%APPDATA%`. It is how the app is run as a new installation
+  would see it without touching real settings.
 
 A second, short-lived file can sit next to it: `muted-sessions.json`, the record of programs
 muted for a measurement (see [Other programs during a
@@ -339,6 +348,16 @@ measurement](#other-programs-during-a-measurement)). It exists only while someth
   switches open it on any screen in any state (`?sync=targetNotHeard`, `?outputs=sourceInUse`,
   ...), which is how every state gets looked at and photographed
   (`scripts/screenshots.mjs`).
+- **The first-run guide** (`src/components/guide/`). Five steps: what Tandem does, the source,
+  the outputs, lining them up, done. It has no logic of its own: each step shows the very part
+  the Outputs, Sync or Settings screen shows (`SourceSection`, `OutputsSection`, `SyncPanel`,
+  `AutostartRow`), on the same store and commands, so nothing set up in the guide can differ
+  from what those screens would have produced, and the real cases (no other device, a source
+  that goes away, no microphone, a failed auto-sync with by ear beside it) are handled where
+  they already were. The guide adds the order, the explanations and one picture
+  (`Lineup.tsx`: speakers out of step, then each output waiting for the slowest). Where it is
+  lives in the settings (`guide_step`), so it survives leaving it and restarting. It opens by
+  itself only while that is pending; the sidebar, the tray popup and Settings lead back to it.
 - **Auto-sync feedback** (`src/components/sync/`). A `calibration` event carries the phase, the
   pass, and, while listening, the step the pass has reached (first sweep, second sweep,
   working out the gap). `SyncOutcome.tsx` turns an event into one sentence and one drawing
@@ -391,7 +410,7 @@ honest split.
 | FIFO shifts, underrun fade, clicks | Unit tests on the buffer helpers (`engine.rs`) | Dropouts under CPU load |
 | Thread priority | One test asks Windows for the "Pro Audio" class (`sys.rs`) | Whether it prevents dropouts under load |
 | `unsafe` code | Denied crate-wide in both crates. Ten blocks remain, all direct Windows calls with no safe wrapper, each with a `SAFETY:` note: four in `sys.rs`, four in `sessions.rs`, one each in `settings.rs` and `tray.rs`. Every one but the corner rounding and the session mute runs in a test | The tray popup's rounded corners; the session mute (`tandem-cli quiet-probe`) |
-| Settings | Round trip, old and partial files, unreadable and newer files kept aside, per-source delays (`settings.rs`) | |
+| Settings | Round trip, old and partial files, unreadable and newer files kept aside, per-source delays; how the guide's place is read from a new, an older and a half-finished installation, and the settings-folder override (`settings.rs`, `lib.rs`) | |
 | Supervisor | Only its pure helpers: finding a device by id then name, sorting errors into kinds | The reconciliation loop itself: disconnects, reconnects, a changed default device, sleep and wake |
 | Capture, render, keepalive threads | Nothing: they need devices | Everything |
 | Volume following | Nothing | A source that applies its own volume. **Not yet confirmed.** |

@@ -13,12 +13,27 @@ mod state;
 mod supervisor;
 mod tray;
 
-use tauri::{Manager, WindowEvent};
+use tauri::{Emitter, Manager, WindowEvent};
 
 use state::AppState;
 
 /// Launched by Windows at login (autostart passes this flag).
 const MINIMIZED_FLAG: &str = "--minimized";
+/// Set this environment variable to a folder to keep the settings there, and not in the
+/// usual `%APPDATA%\com.vdouay.tandem`. For trying Tandem as a new installation would see
+/// it, or for testing, without touching the real settings.
+const CONFIG_DIR_VARIABLE: &str = "TANDEM_CONFIG_DIR";
+
+/// The folder the settings live in: the override when one is given, else the usual one.
+fn config_dir(
+    overridden: Option<std::ffi::OsString>,
+    usual: std::path::PathBuf,
+) -> std::path::PathBuf {
+    match overridden {
+        Some(dir) if !dir.is_empty() => dir.into(),
+        _ => usual,
+    }
+}
 
 pub fn run() {
     tauri::Builder::default()
@@ -36,7 +51,10 @@ pub fn run() {
             Some(vec![MINIMIZED_FLAG]),
         ))
         .setup(|app| {
-            let config_dir = app.path().app_config_dir()?;
+            let config_dir = config_dir(
+                std::env::var_os(CONFIG_DIR_VARIABLE),
+                app.path().app_config_dir()?,
+            );
             app.manage(AppState::new(config_dir));
             tray::build(app.handle())?;
             supervisor::spawn(app.handle().clone());
@@ -55,7 +73,14 @@ pub fn run() {
         .on_window_event(|window, event| match event {
             WindowEvent::CloseRequested { api, .. } if window.label() == "main" => {
                 let app = window.app_handle();
-                if app.state::<AppState>().settings().close_to_tray {
+                // Someone who has outputs and closes the window is set up, guide or not:
+                // do not bring the guide back at them next time.
+                let state = app.state::<AppState>();
+                if state.settings().guide_done_by_closing() {
+                    state.update_settings(|s| s.guide_step = None);
+                    let _ = app.emit("settings", state.settings());
+                }
+                if state.settings().close_to_tray {
                     api.prevent_close();
                     let _ = window.hide();
                 } else {
@@ -89,9 +114,27 @@ pub fn run() {
             commands::open_sound_settings,
             commands::show_main_window,
             commands::show_update_prompt,
+            commands::show_guide,
             commands::hide_tray_popup,
             commands::quit_app,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Tandem");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn the_settings_folder_can_be_overridden_and_an_empty_override_is_ignored() {
+        let usual = PathBuf::from("usual");
+        assert_eq!(config_dir(None, usual.clone()), usual);
+        assert_eq!(config_dir(Some("".into()), usual.clone()), usual);
+        assert_eq!(
+            config_dir(Some("elsewhere".into()), usual),
+            PathBuf::from("elsewhere")
+        );
+    }
 }

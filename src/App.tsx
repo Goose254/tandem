@@ -4,6 +4,7 @@ import { Sidebar } from "./components/shell/Sidebar";
 import { OutputsView } from "./components/outputs/OutputsView";
 import { SyncView } from "./components/sync/SyncView";
 import { SettingsView } from "./components/settings/SettingsView";
+import { GuideView } from "./components/guide/GuideView";
 import { SyncSpinner } from "./components/common/Layout";
 import { startSync, useStore } from "./state/store";
 import { useApplyTheme } from "./lib/theme";
@@ -22,7 +23,12 @@ export default function App() {
     void startSync();
     // The tray popup's "Update…" asks the main window to show its prompt.
     const stop = on("show-update", () => useUpdater.getState().openPrompt());
-    return () => void stop.then((off) => off());
+    // ... and its "Finish setting up" asks for the guide.
+    const stopGuide = on("show-guide", () => useStore.getState().setView("guide"));
+    return () => {
+      void stop.then((off) => off());
+      void stopGuide.then((off) => off());
+    };
   }, []);
 
   return (
@@ -40,6 +46,7 @@ export default function App() {
               {view === "outputs" ? <OutputsView /> : null}
               {view === "sync" ? <SyncView /> : null}
               {view === "settings" ? <SettingsView /> : null}
+              {view === "guide" ? <GuideView /> : null}
             </div>
           )}
         </main>

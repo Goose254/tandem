@@ -15,6 +15,10 @@
  *   ?sync=<state>            open the Sync screen in one state of auto-sync (see SYNC_STATES)
  *   ?outputs=<state>         open the Outputs screen in one state (see OUTPUT_STATES)
  *   ?autostart=fail          Windows refuses the launch-at-login switch
+ *   ?firstRun=1              a new installation: no output, the guide at its first step
+ *   ?firstRun=noDevices      ... on a machine with no other playback device
+ *   ?firstRun=noMic          the guide on a machine with no microphone (outputs already added)
+ *   ?guide=<0..4>            the guide at that step (with ?firstRun=, or with the usual outputs)
  *   ?autorun=1               start an auto-sync by itself shortly after loading
  *   ?update=1.2.3 | fail     an update is available / the update check fails
  */
@@ -70,6 +74,7 @@ const settings: Settings = {
   locale: params.get("lang") === "fr" ? "fr" : "en",
   closeToTray: true,
   startMinimized: true,
+  guideStep: null,
 };
 
 let clicks = false;
@@ -162,6 +167,22 @@ if (["preparing", "first", "second", "analysing", "pass2", "refFirst", "refSecon
   calibrating = TARGET;
 }
 if (outputsState === "empty") settings.outputs = [];
+
+// -- A new installation, and the guide -----------------------------------------------------
+const firstRun = params.get("firstRun");
+const guideAt = params.get("guide");
+if (firstRun === "1" || firstRun === "noDevices") {
+  settings.outputs = [];
+  settings.mic = null;
+  settings.guideStep = 0;
+}
+if (firstRun === "noDevices") devices.outputs = devices.outputs.slice(0, 1);
+if (firstRun === "noMic") {
+  devices.inputs = [];
+  settings.mic = null;
+  settings.guideStep = 3;
+}
+if (guideAt != null) settings.guideStep = Math.max(0, Math.min(4, Number(guideAt) || 0));
 
 function setDelay(id: string, ms: number) {
   const o = output(id);
@@ -428,7 +449,7 @@ export function mockListen(event: string, handler: Handler): () => void {
   return () => listeners.get(event)?.delete(handler);
 }
 
-type Screen = "outputs" | "sync" | "settings";
+type Screen = "outputs" | "sync" | "settings" | "guide";
 
 /**
  * Called by the store once it listens to every event: opens the screen the page asked for and
@@ -437,13 +458,15 @@ type Screen = "outputs" | "sync" | "settings";
 export function previewReady(apply: (patch: { view?: Screen; syncTarget?: string }) => void): void {
   const asked = params.get("view");
   const view: Screen | null =
-    asked === "outputs" || asked === "sync" || asked === "settings"
+    asked === "outputs" || asked === "sync" || asked === "settings" || asked === "guide"
       ? asked
-      : syncState
-        ? "sync"
-        : outputsState
-          ? "outputs"
-          : null;
+      : settings.guideStep != null
+        ? "guide"
+        : syncState
+          ? "sync"
+          : outputsState
+            ? "outputs"
+            : null;
   if (view) apply({ view, syncTarget: TARGET });
 
   const opening = openingEvent();

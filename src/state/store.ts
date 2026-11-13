@@ -8,7 +8,7 @@ import { create } from "zustand";
 import { ipc, on, simulated } from "../lib/ipc";
 import type { CalibrationEvent, Devices, Levels, OutputSetting, Settings, Snapshot } from "../lib/ipc";
 
-export type View = "outputs" | "sync" | "settings";
+export type View = "outputs" | "sync" | "settings" | "guide";
 
 type Store = {
   ready: boolean;
@@ -84,7 +84,9 @@ export async function startSync(): Promise<void> {
       ipc.listDevices(),
       ipc.getAutostart(),
     ]);
-    setState({ settings, status, devices, autostart, ready: true });
+    // A pending first-run guide is where the window opens.
+    const view: View = settings.guideStep != null ? "guide" : getState().view;
+    setState({ settings, status, devices, autostart, ready: true, view });
   } catch {
     setState({ ready: true });
   }

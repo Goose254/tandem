@@ -34,6 +34,8 @@ const SIZES = [
   [1040, 720],
   [820, 560],
 ];
+/** The tray popup's window size (src-tauri/tauri.conf.json). */
+const TRAY = [320, 340];
 const LANGS = ["en", "fr"];
 const THEMES = ["light", "dark"];
 
@@ -58,6 +60,18 @@ const STATES = [
   { name: "settings-autostart-refused", query: "view=settings&autostart=fail" },
   { name: "update-available", query: "update=9.9.9", wait: 8000 },
   { name: "tray", query: "window=tray" },
+  { name: "tray-guide-pending", query: "window=tray&firstRun=1" },
+  { name: "guide-1-intro", query: "firstRun=1" },
+  { name: "guide-2-source", query: "firstRun=1&guide=1" },
+  { name: "guide-3-outputs-empty", query: "firstRun=1&guide=2" },
+  { name: "guide-3-outputs-no-device", query: "firstRun=noDevices&guide=2" },
+  { name: "guide-3-outputs", query: "guide=2" },
+  { name: "guide-4-sync-no-output", query: "firstRun=1&guide=3" },
+  { name: "guide-4-sync", query: "guide=3" },
+  { name: "guide-4-sync-no-mic", query: "firstRun=noMic" },
+  { name: "guide-4-sync-failed", query: "guide=3&sync=targetNotHeard" },
+  { name: "guide-5-done", query: "guide=4" },
+  { name: "guide-5-done-no-output", query: "firstRun=1&guide=4" },
   ...SYNC.map((s) => ({ name: `sync-${s}`, query: `sync=${s}` })),
   ...OUTPUTS.map((s) => ({ name: `outputs-${s}`, query: `outputs=${s}` })),
 ];
@@ -190,9 +204,20 @@ for (const size of SIZES) {
       mkdirSync(dir, { recursive: true });
       combos.push({ size, lang, theme, dir });
       for (const state of states) {
-        const url = `${base}?${state.query}&lang=${lang}&theme=${theme}`;
-        // The tray popup is its own small window.
-        const shot = state.name === "tray" ? [320, 360] : size;
+        const page = `${base}?${state.query}&lang=${lang}&theme=${theme}`;
+        // The tray popup is its own small window (320 x 340), narrower than a browser window
+        // can be made: it is shown in a frame of that size, on the left of a wider picture.
+        const tray = state.name.startsWith("tray");
+        let url = page;
+        if (tray) {
+          const frame = join(dir, `${state.name}.frame.html`);
+          writeFileSync(
+            frame,
+            `<!doctype html><body style="margin:0;background:#888"><iframe src="${page}" width="${TRAY[0]}" height="${TRAY[1]}" style="border:0;display:block"></iframe>`,
+          );
+          url = `file:///${frame.replaceAll("\\", "/")}`;
+        }
+        const shot = tray ? [520, TRAY[1]] : size;
         jobs.push((worker) =>
           shoot(join(profiles, `p${worker}`), url, join(dir, `${state.name}.png`), shot, state.wait ?? 3000),
         );

@@ -155,6 +155,9 @@ pub struct PreferencesPatch {
     /// `Some(None)` forgets the skipped version.
     #[serde(default, deserialize_with = "double_option")]
     skipped_update: Option<Option<String>>,
+    /// `Some(None)` marks the first-run guide finished; `Some(Some(n))` moves it to step n.
+    #[serde(default, deserialize_with = "double_option")]
+    guide_step: Option<Option<u8>>,
     /// `Some(None)` goes back to syncing against the source.
     #[serde(default, deserialize_with = "double_option")]
     sync_reference: Option<Option<String>>,
@@ -210,6 +213,9 @@ pub fn set_preferences(
         if let Some(v) = patch.skipped_update {
             s.skipped_update = v;
         }
+        if let Some(v) = patch.guide_step {
+            s.guide_step = v.map(|step| step.min(crate::settings::LAST_GUIDE_STEP));
+        }
         if let Some(v) = patch.sync_reference {
             s.sync_reference = v;
         }
@@ -256,6 +262,13 @@ pub fn open_sound_settings() -> Result<(), String> {
 #[tauri::command]
 pub fn show_main_window(app: AppHandle) {
     crate::tray::show_main_window(&app);
+}
+
+/// From the tray popup: bring up the main window on the first-run guide.
+#[tauri::command]
+pub fn show_guide(app: AppHandle) {
+    crate::tray::show_main_window(&app);
+    let _ = app.emit("show-guide", ());
 }
 
 /// From the tray popup: bring up the main window with its update prompt.

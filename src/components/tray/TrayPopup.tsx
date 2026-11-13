@@ -71,6 +71,13 @@ export function TrayPopup() {
         })}
       </ul>
 
+      {settings?.guideStep != null ? (
+        <div className={styles.update}>
+          <span>{t((d) => d.guide.trayLine)}</span>
+          <QuietButton onClick={() => void ipc.showGuide()}>{t((d) => d.guide.trayAction)}</QuietButton>
+        </div>
+      ) : null}
+
       {status?.update ? (
         <div className={styles.update}>
           <span className="tabular">{t((d) => d.updater.trayLine, { version: status.update })}</span>

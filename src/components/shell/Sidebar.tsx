@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { AudioWaveform, Settings, Speaker } from "lucide-react";
+import { AudioWaveform, Compass, Settings, Speaker } from "lucide-react";
 import { Meter, Switch } from "../common/Controls";
 import { ipc } from "../../lib/ipc";
 import { useStore } from "../../state/store";
@@ -48,6 +48,15 @@ export function Sidebar() {
     <nav className={styles.side}>
       <div className={styles.navgroup}>
         <div className={styles.navlabel}>{t((d) => d.nav.group)}</div>
+        {/* The way back into the guide, for as long as it is pending or open. */}
+        {settings?.guideStep != null || view === "guide" ? (
+          <NavItem
+            icon={<Compass size={17} />}
+            label={t((d) => d.nav.guide)}
+            active={view === "guide"}
+            onClick={go("guide")}
+          />
+        ) : null}
         <NavItem
           icon={<Speaker size={17} />}
           label={t((d) => d.nav.outputs)}

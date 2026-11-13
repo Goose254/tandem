@@ -1,0 +1,143 @@
+/* The first-run guide: a step frame over the same parts the other screens show. */
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.headText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* The five steps: where you are, and a way to any of them. */
+.steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 0 -10px;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  font: inherit;
+  color: var(--ink-3);
+  font-size: 12.5px;
+  font-weight: 550;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) ease,
+    color var(--dur-fast) ease;
+}
+
+.step:hover {
+  background: var(--veil);
+  color: var(--ink);
+}
+
+.step i {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--pill);
+  background: var(--veil-2);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 650;
+}
+
+.step[data-state="past"] {
+  color: var(--ink-2);
+}
+
+.step[data-state="current"] {
+  color: var(--ink);
+}
+
+.step[data-state="current"] i {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: step-in var(--dur-slow) var(--ease-cover);
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.prose {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: 66ch;
+}
+
+.prose p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.prose p:first-child {
+  color: var(--ink);
+}
+
+/* Settings rows shown in the guide keep the reading width they have in Settings. */
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 640px;
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-inline: -12px 0;
+  padding-top: 4px;
+}

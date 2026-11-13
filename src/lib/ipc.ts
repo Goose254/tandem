@@ -62,6 +62,8 @@ export type Settings = {
   locale: Locale;
   closeToTray: boolean;
   startMinimized: boolean;
+  /** The first-run guide: the step it is at while pending, null once finished or skipped. */
+  guideStep: number | null;
 };
 
 export type SourceState = "off" | "running" | "waiting" | "error" | "paused";
@@ -162,6 +164,7 @@ export type PreferencesPatch = Partial<{
   pauseWhenSilent: boolean;
   autoCheckUpdates: boolean;
   skippedUpdate: string | null;
+  guideStep: number | null;
 }>;
 
 export const ipc = {
@@ -189,6 +192,7 @@ export const ipc = {
   openSoundSettings: () => invoke<void>("open_sound_settings"),
   showMainWindow: () => invoke<void>("show_main_window"),
   showUpdatePrompt: () => invoke<void>("show_update_prompt"),
+  showGuide: () => invoke<void>("show_guide"),
   hideTrayPopup: () => invoke<void>("hide_tray_popup"),
   quit: () => invoke<void>("quit_app"),
 };

@@ -16,12 +16,9 @@ export function SettingsView() {
   const t = useT();
   const settings = useStore((s) => s.settings)!;
   const autostart = useStore((s) => s.autostart);
-  const setAutostart = useStore((s) => s.setAutostart);
+  const setView = useStore((s) => s.setView);
   // Outside the desktop shell there is no app to ask: the preview says so from the first render.
   const [version, setVersion] = useState(inShell ? "" : "preview");
-  // Windows can refuse to change the launch-at-login entry; the switch then stays put, and
-  // without a word that looks like a dead control.
-  const [autostartRefused, setAutostartRefused] = useState(false);
 
   useEffect(() => {
     if (inShell) void getVersion().then(setVersion).catch(() => setVersion("dev"));
@@ -75,22 +72,7 @@ export function SettingsView() {
         </Section>
 
         <Section label={t((d) => d.settings.startup)}>
-          <Row label={t((d) => d.settings.autostart)} helper={t((d) => d.settings.autostartHelp)}>
-            <Switch
-              checked={autostart}
-              label={t((d) => d.settings.autostart)}
-              onChange={(on) =>
-                void ipc
-                  .setAutostart(on)
-                  .then((now) => {
-                    setAutostart(now);
-                    setAutostartRefused(now !== on);
-                  })
-                  .catch(() => setAutostartRefused(true))
-              }
-            />
-          </Row>
-          {autostartRefused ? <Notice tone="warn">{t((d) => d.settings.autostartFailed)}</Notice> : null}
+          <AutostartRow />
           <Row label={t((d) => d.settings.startMinimized)} helper={t((d) => d.settings.startMinimizedHelp)}>
             <Switch
               checked={settings.startMinimized}
@@ -110,6 +92,19 @@ export function SettingsView() {
 
         <UpdatesSection version={version} />
 
+        <Section label={t((d) => d.settings.guide)}>
+          <Row label={t((d) => d.settings.guideRow)} helper={t((d) => d.settings.guideHelp)}>
+            <QuietButton
+              onClick={() => {
+                void ipc.setPreferences({ guideStep: 0 });
+                setView("guide");
+              }}
+            >
+              {t((d) => d.settings.guideShow)}
+            </QuietButton>
+          </Row>
+        </Section>
+
         <Section label={t((d) => d.settings.about)}>
           <div className={styles.about}>
             <Logo size={40} />
@@ -128,6 +123,36 @@ export function SettingsView() {
         </Section>
       </div>
     </div>
+  );
+}
+
+/** Launch at login, with a word when Windows refuses the change. Also on the guide's last step. */
+export function AutostartRow() {
+  const t = useT();
+  const autostart = useStore((s) => s.autostart);
+  const setAutostart = useStore((s) => s.setAutostart);
+  // Windows can refuse to change the launch-at-login entry; the switch then stays put, and
+  // without a word that looks like a dead control.
+  const [refused, setRefused] = useState(false);
+  return (
+    <>
+      <Row label={t((d) => d.settings.autostart)} helper={t((d) => d.settings.autostartHelp)}>
+        <Switch
+          checked={autostart}
+          label={t((d) => d.settings.autostart)}
+          onChange={(on) =>
+            void ipc
+              .setAutostart(on)
+              .then((now) => {
+                setAutostart(now);
+                setRefused(now !== on);
+              })
+              .catch(() => setRefused(true))
+          }
+        />
+      </Row>
+      {refused ? <Notice tone="warn">{t((d) => d.settings.autostartFailed)}</Notice> : null}
+    </>
   );
 }
 
