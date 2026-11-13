@@ -48,10 +48,13 @@ wired outputs added in Tandem.
 12. Run it again straight away. **Expect:** "Already in sync".
 13. With two wired outputs and a source you cannot hear: set "Line up with" to one of them and
     run auto-sync on the other. **Expect:** "Done", and the clicks from both outputs merge.
+    The sweeps still come out of the source (outputs only copy it), which is why this step
+    needs a source the microphone cannot hear.
 
-Result so far (maintainer's setup, November 2026): step 11 passed. Auto-sync moved a delay
-that had been set by ear by 4 ms, and the result sounds very good. Steps 12 and 13 have no
-recorded result yet.
+Result so far (maintainer's setup, November 2026): steps 11 and 12 passed. Auto-sync moved a
+delay that had been set by ear by 4 ms, the result sounds very good, and a second run
+answered "Already in sync". Step 13 has not been run as written: tried with a source that
+can be heard, the sweeps played on it as well, which is how the procedure is built.
 
 ## 6. Pause when nothing plays
 

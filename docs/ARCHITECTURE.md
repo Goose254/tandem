@@ -195,7 +195,11 @@ Edge cases the procedure handles:
 - **A source nobody listens to** (several outputs of one interface, the source being an unused
   one): the microphone cannot hear it. With a "Line up with" output chosen, that output plays
   the part of the source in both sweeps, and the measurement is between the two outputs. If the
-  synced output is behind the reference even at 0 ms, the reference is delayed instead.
+  synced output is behind the reference even at 0 ms, the reference is delayed instead. The
+  sweeps still leave through the source, because outputs only ever copy what the source plays:
+  this mode assumes the microphone does not hear the source. With a source the microphone does
+  hear, both the source and the reference arrive twice and the analysis cannot tell which one
+  it is measuring against; that case is not handled.
 - **Mutes are restored on every exit path**, including failures, and a failed or interrupted
   run never leaves auto-sync marked busy.
 

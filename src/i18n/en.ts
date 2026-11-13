@@ -77,7 +77,7 @@ export const en = {
     micNone: "Choose a microphone",
     reference: "Line up with",
     referenceSource: "The source",
-    referenceHelp: "Pick another output when the microphone can't hear the source, for example a source nobody listens to. That output then plays the first sweep in the source's place.",
+    referenceHelp: "Pick another output when the microphone can't hear the source, for example a source nobody listens to. The sweeps still come out of the source, which the outputs only copy: if the microphone can hear it, keep “The source”.",
     run: "Run auto-sync",
     running: "Listening… pass {pass} of 2",
     pauseHint: "Pause your music and keep the room quiet for about 10 seconds.",

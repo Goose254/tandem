@@ -76,7 +76,7 @@ export const fr: Dict = {
     micNone: "Choisir un micro",
     reference: "Aligner sur",
     referenceSource: "La source",
-    referenceHelp: "Choisissez une autre sortie quand le micro ne peut pas entendre la source, par exemple une source que personne n'écoute. Cette sortie joue alors le premier balayage à la place de la source.",
+    referenceHelp: "Choisissez une autre sortie quand le micro ne peut pas entendre la source, par exemple une source que personne n'écoute. Les balayages sortent quand même de la source, que les sorties ne font que recopier : si le micro l'entend, gardez « La source ».",
     run: "Lancer la synchro auto",
     running: "Écoute… passe {pass} sur 2",
     pauseHint: "Mettez la musique en pause et gardez la pièce calme une dizaine de secondes.",
