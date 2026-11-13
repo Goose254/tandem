@@ -3929,7 +3929,7 @@ dependencies = [
 
 [[package]]
 name = "tandem"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -3947,7 +3947,7 @@ dependencies = [
 
 [[package]]
 name = "tandem-engine"
-version = "1.0.3"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "audioadapter-buffers",

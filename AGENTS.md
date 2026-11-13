@@ -245,12 +245,11 @@ Done, in order: the engine and CLI; the desktop app with tray, installer, Englis
 0 ms delays and sample-rate display; an audit that fixed twenty findings (thread priority,
 channel mixing, volume following, pause when silent, reference-output auto-sync, non-blocking
 disconnects, settings backup, undo, translated errors, tray placement, CI and releases); the
-three-note icon; in-app updates (1.0.1); the first published release (1.0.2); auto-sync that
-keeps "Line up with" sweeps off the source and silences other programs for a measurement
-started by hand (branch `sync-quiet`, not merged); a drawing for every auto-sync state, the
-busy indicator redrawn from the mark, causes shown on device errors (branch `sync-feedback`,
-on top of `sync-quiet`, not merged); a first-run guide in five steps (branch `first-run`, on
-top of `sync-feedback`, not merged).
+three-note icon; in-app updates (1.0.1); the first published release (1.0.2); and, released
+together as 1.1.0: auto-sync that keeps "Line up with" sweeps off the source and silences
+other programs for a measurement started by hand; a drawing for every auto-sync state, the
+busy indicator redrawn from the mark, causes shown on device errors; a first-run guide in
+five steps.
 
 Known gaps:
 
