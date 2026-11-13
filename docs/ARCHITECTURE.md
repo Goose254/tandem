@@ -313,7 +313,7 @@ honest split.
 
 | Area | Automated (`cargo test`, on Windows) | Only on hardware, by hand |
 |---|---|---|
-| Calibration analysis | Synthetic recordings: an output late, early, or 2 ms away; louder than the source; a reflection stronger than the direct sound; heavy noise; a missing output; pure noise; recordings cut short (`calibrate.rs`) | A real room, speaker and microphone. **Not yet confirmed.** |
+| Calibration analysis | Synthetic recordings: an output late, early, or 2 ms away; louder than the source; a reflection stronger than the direct sound; heavy noise; a missing output; pure noise; recordings cut short (`calibrate.rs`) | A real room, speaker and microphone. Confirmed in November 2026: auto-sync landed 4 ms from a delay set by ear (checklist step 11). Lining up with another output (step 13) is **not yet confirmed.** |
 | Drift controller | A simulated clock mismatch of +100 and −80 ppm with packet-sized jitter settles on target; a large error triggers a resync (`control.rs`) | Real clocks over a long listen (step 3 of the hardware checklist) |
 | Channel mixing | Identity, mono, stereo, 5.1 and 7.1 folds (`mix.rs`) | A surround source on stereo speakers |
 | FIFO shifts, underrun fade, clicks | Unit tests on the buffer helpers (`engine.rs`) | Dropouts under CPU load |
@@ -328,6 +328,6 @@ honest split.
 | In-app update | Nothing | One published release updating to the next. **Not yet confirmed.** |
 
 The hardware checks, step by step, are in [hardware-test.md](hardware-test.md). Mirroring with
-delays set by ear is the part that has been used on real devices, and it works well there. The
-three features marked *experimental* in the README are the ones this table marks as not yet
-confirmed.
+delays set by ear or by microphone auto-sync is the part that has been used on real devices,
+and it works well there. The two features marked *experimental* in the README are the ones
+this table marks as not yet confirmed.

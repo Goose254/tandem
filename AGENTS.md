@@ -165,8 +165,10 @@ three-note icon; in-app updates (1.0.1); the first published release (1.0.2).
 
 Known gaps:
 
-- Microphone auto-sync, volume following on a hardware-volume device and "pause when nothing
-  plays" have not been confirmed on real hardware. Sync by ear has, and works well.
+- Volume following on a hardware-volume device and "pause when nothing plays" have not been
+  confirmed on real hardware. Sync by ear and microphone auto-sync have, and work well
+  (November 2026: auto-sync landed 4 ms from a delay set by ear). Lining an output up with
+  another output ("Line up with") has not been checked on hardware.
 - The installer is not code-signed, so SmartScreen warns on first run. That needs a paid
   certificate.
 - An in-app update has not yet been confirmed end to end. 1.0.3 is the first release that an

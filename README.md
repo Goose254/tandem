@@ -37,7 +37,7 @@ No virtual audio cable or driver is needed.
 - **Survives disconnects.** When the Bluetooth amp drops and comes back, or an output is
   unplugged and replugged, Tandem picks it up again on its own, even if Windows gave it a new id.
 - **Sync by ear:** calibration clicks plus a delay control with 1 ms and 10 ms steps.
-- **Sync with a microphone** (*experimental*): two sweeps, deconvolution and a verification
+- **Sync with a microphone:** two sweeps, deconvolution and a verification
   pass. The microphone's own latency cancels out. Optionally re-syncs automatically after a
   reconnect. An output can be lined up with another output instead of the source, for a source
   nobody listens to.
@@ -52,12 +52,15 @@ No virtual audio cable or driver is needed.
 - **Updates itself** from the GitHub releases, when you say so.
 - English and French, light and dark themes (follows the system by default).
 
-**Experimental** means built and, where a computer can check it, tested (the sync maths runs
-against simulated recordings), but **not yet confirmed on real hardware**: microphone
-auto-sync, following the volume of a source that applies it itself, and "pause when nothing
-plays". The checks they are waiting for are sections 3, 5 and 6 of
+**Experimental** means built and, where a computer can check it, tested, but **not yet
+confirmed on real hardware**: following the volume of a source that applies it itself, and
+"pause when nothing plays". The checks they are waiting for are sections 3 and 6 of
 [docs/hardware-test.md](docs/hardware-test.md); each label goes away once its checks pass.
-Sync by ear has been confirmed on real devices and is the method to rely on meanwhile.
+
+Both ways of syncing have been confirmed on real devices. On the maintainer's setup,
+microphone auto-sync landed 4 ms from a delay that had been set by ear, and the result
+sounds very good. Lining an output up with another output instead of the source has not been
+checked on hardware yet.
 
 ## How it works
 

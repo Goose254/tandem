@@ -49,6 +49,10 @@ wired outputs added in Tandem.
 13. With two wired outputs and a source you cannot hear: set "Line up with" to one of them and
     run auto-sync on the other. **Expect:** "Done", and the clicks from both outputs merge.
 
+Result so far (maintainer's setup, November 2026): step 11 passed. Auto-sync moved a delay
+that had been set by ear by 4 ms, and the result sounds very good. Steps 12 and 13 have no
+recorded result yet.
+
 ## 6. Pause when nothing plays
 
 14. Turn it on (Settings > Audio), stop all sound and wait a little over two minutes.
