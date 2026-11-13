@@ -1,18 +1,33 @@
 import { useRef, useState } from "react";
-import { Plus, Trash2, Minus, AudioWaveform } from "lucide-react";
+import { AudioWaveform, CircleAlert, Lock, Minus, Plus, TimerOff, Trash2, Unplug } from "lucide-react";
 import { Card, EmptyState, Notice, Section, ViewHeader } from "../common/Layout";
 import { IconButton, QuietButton } from "../common/Buttons";
 import { Meter, Select, StatusDot, Switch } from "../common/Controls";
 import type { SelectOption, Tone } from "../common/Controls";
 import { DelayControl } from "../common/DelayControl";
 import { delayFor, ipc } from "../../lib/ipc";
-import type { OutputSetting, OutputStatus, Snapshot } from "../../lib/ipc";
+import type { ErrorKind, OutputSetting, OutputStatus, Snapshot } from "../../lib/ipc";
+import { outcomeText } from "../sync/SyncOutcome";
 import { formatDb, formatMs, formatPpm, formatRate, outputTone } from "../../lib/summary";
 import { useStore } from "../../state/store";
 import { useLocale, useT } from "../../i18n";
 import styles from "./OutputsView.module.css";
 
 const DEFAULT = "__default__";
+
+/** A drawing for why Windows would not open a device, shown before the sentence that says it. */
+function CauseIcon({ kind }: { kind: ErrorKind }) {
+  switch (kind) {
+    case "inUse":
+      return <Lock size={14} />;
+    case "invalidated":
+      return <Unplug size={14} />;
+    case "stalled":
+      return <TimerOff size={14} />;
+    default:
+      return <CircleAlert size={14} />;
+  }
+}
 
 export function OutputsView() {
   const t = useT();
@@ -140,10 +155,11 @@ function SourceCard() {
       </div>
       <Meter level={src?.level ?? 0} muted={src?.state !== "running"} />
       {src?.state === "error" && src.errorKind ? (
-        <Notice tone="warn">
+        <Notice tone="warn" icon={<CauseIcon kind={src.errorKind} />}>
           <span title={src.error ?? undefined}>{t((d) => d.outputs.errors[src.errorKind!])}</span>
         </Notice>
       ) : null}
+      {src?.state === "waiting" ? <Notice>{t((d) => d.outputs.sourceWaitingHelp)}</Notice> : null}
       <p className={styles.helper}>{t((d) => d.outputs.sourceHelp)}</p>
     </Card>
   );
@@ -200,7 +216,14 @@ function OutputCard({
   const locale = useLocale();
   const openSync = useStore((s) => s.openSync);
   const removeOutput = useStore((s) => s.removeOutput);
+  const settings = useStore((s) => s.settings);
   const id = output.device.id;
+  // The last automatic re-sync of this output, until a later run replaces it: it happened
+  // with nobody watching, so its result is shown here and not only on the Sync screen.
+  const auto = useStore((s) => s.calibration[id]);
+  const autoDone = auto?.automatic && auto.phase !== "listening" ? auto : undefined;
+  const autoReference =
+    settings?.outputs.find((o) => o.device.id === autoDone?.reference)?.device.name ?? null;
   const delay = delayFor(output, snapshot?.source.deviceId);
   const state = status?.state ?? "idle";
   const sourceRate = snapshot?.source.sampleRate ?? null;
@@ -242,19 +265,20 @@ function OutputCard({
 
       <div className={styles.foot}>
         <Meter level={status?.level ?? 0} muted={!live} />
-        <span className={`${styles.stats} tabular`} title={(!live && status?.error) || undefined}>
+        <span className={`${styles.stats} tabular`}>
           {live && status
             ? t((d) => d.outputs.stats, {
                 rate: status.sampleRate ? formatRate(status.sampleRate, locale) : "—",
                 ppm: formatPpm(status.correctionPpm),
                 lag: status.minLagMs != null ? formatMs(status.minLagMs, locale) : "—",
               })
-            : status?.errorKind
-              ? t((d) => d.outputs.errors[status.errorKind!])
-              : ""}
-          {status && status.underruns > 0
-            ? ` · ${t((d) => d.outputs.underruns, { n: status.underruns })}`
             : ""}
+          {status && status.underruns > 0 ? (
+            <span className={styles.dropouts}>
+              {live ? " · " : ""}
+              {t((d) => d.outputs.underruns, { n: status.underruns })}
+            </span>
+          ) : null}
         </span>
         <QuietButton onClick={() => openSync(id)}>
           <AudioWaveform size={15} />
@@ -262,6 +286,22 @@ function OutputCard({
         </QuietButton>
       </div>
 
+      {state === "error" && status?.errorKind ? (
+        <Notice tone="warn" icon={<CauseIcon kind={status.errorKind} />}>
+          <span title={status.error ?? undefined}>{t((d) => d.outputs.errors[status.errorKind!])}</span>
+        </Notice>
+      ) : null}
+      {state === "isSource" ? <Notice>{t((d) => d.outputs.isSourceHelp)}</Notice> : null}
+      {autoDone ? (
+        <Notice tone={autoDone.phase === "done" ? "info" : "warn"}>
+          {autoDone.phase === "done" && autoDone.delayMs != null
+            ? t((d) => d.outputs.autoResynced, { delay: autoDone.delayMs })
+            : autoDone.failure === "otherAudio"
+              ? // This one already says it was the automatic re-sync that stopped.
+                outcomeText(autoDone, autoReference, t, locale)
+              : t((d) => d.outputs.autoFailed, { reason: outcomeText(autoDone, autoReference, t, locale) })}
+        </Notice>
+      ) : null}
       {live && status?.sampleRate && sourceRate && status.sampleRate !== sourceRate ? (
         <Notice
           tone="warn"

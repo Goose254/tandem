@@ -335,7 +335,19 @@ measurement](#other-programs-during-a-measurement)). It exists only while someth
 - **Simulated backend.** Outside the desktop shell, `src/lib/mock.ts` answers the same commands
   and events from an in-memory model. It exists in exactly two places: the dev server
   (`npm run dev` in a browser) and the demo build (`npm run build:demo`). The condition is a
-  build-time constant, so the bundle that ships in the installer does not contain it.
+  build-time constant, so the bundle that ships in the installer does not contain it. Page
+  switches open it on any screen in any state (`?sync=targetNotHeard`, `?outputs=sourceInUse`,
+  ...), which is how every state gets looked at and photographed
+  (`scripts/screenshots.mjs`).
+- **Auto-sync feedback** (`src/components/sync/`). A `calibration` event carries the phase, the
+  pass, and, while listening, the step the pass has reached (first sweep, second sweep,
+  working out the gap). `SyncOutcome.tsx` turns an event into one sentence and one drawing
+  from `SyncVisuals.tsx`: a *scene* (the speakers, the sound they send, the microphone) while
+  listening and after a failure, where it marks the part to fix; a *time line* after a
+  success, where the output slides onto the speaker it was lined up with. The sentence is the
+  source of truth and is announced once through a live region; the drawings are hidden from
+  assistive tech. An automatic re-sync also leaves a line on its output's card, since nobody
+  was watching the Sync screen when it ran.
 
 ## Updates
 
@@ -385,7 +397,7 @@ honest split.
 | Volume following | Nothing | A source that applies its own volume. **Not yet confirmed.** |
 | Pause when nothing plays | Nothing | Whether Windows actually sleeps and wakes cleanly. **Not yet confirmed.** |
 | Tray icon | The drawn icon has three notes and a centre (`tray.rs`) | Popup placement on other taskbar positions and monitors |
-| UI | No tests. Type-checked (`tsc`) and linted (ESLint); reviewed by hand against the simulated backend | The same screens against the real backend |
+| UI | No tests. Type-checked (`tsc`) and linted (ESLint); every state opened from the simulated backend, photographed by `scripts/screenshots.mjs` in both languages, both themes and two window sizes, and looked at | The same screens against the real backend: the steps of a real run, real failures |
 | In-app update | Nothing | One published release updating to the next. **Not yet confirmed.** |
 
 The hardware checks, step by step, are in [hardware-test.md](hardware-test.md). Mirroring with

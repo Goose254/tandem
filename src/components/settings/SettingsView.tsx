@@ -3,7 +3,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { ExternalLink } from "lucide-react";
 import { QuietButton } from "../common/Buttons";
 import { openExternal, REPO_URL } from "../../lib/links";
-import { Logo, Row, Section, ViewHeader } from "../common/Layout";
+import { Logo, Notice, Row, Section, ViewHeader } from "../common/Layout";
 import { SegmentedControl, Switch } from "../common/Controls";
 import { inShell, ipc } from "../../lib/ipc";
 import type { Locale, ThemeChoice } from "../../lib/ipc";
@@ -19,6 +19,9 @@ export function SettingsView() {
   const setAutostart = useStore((s) => s.setAutostart);
   // Outside the desktop shell there is no app to ask: the preview says so from the first render.
   const [version, setVersion] = useState(inShell ? "" : "preview");
+  // Windows can refuse to change the launch-at-login entry; the switch then stays put, and
+  // without a word that looks like a dead control.
+  const [autostartRefused, setAutostartRefused] = useState(false);
 
   useEffect(() => {
     if (inShell) void getVersion().then(setVersion).catch(() => setVersion("dev"));
@@ -79,11 +82,15 @@ export function SettingsView() {
               onChange={(on) =>
                 void ipc
                   .setAutostart(on)
-                  .then(setAutostart)
-                  .catch(() => {})
+                  .then((now) => {
+                    setAutostart(now);
+                    setAutostartRefused(now !== on);
+                  })
+                  .catch(() => setAutostartRefused(true))
               }
             />
           </Row>
+          {autostartRefused ? <Notice tone="warn">{t((d) => d.settings.autostartFailed)}</Notice> : null}
           <Row label={t((d) => d.settings.startMinimized)} helper={t((d) => d.settings.startMinimizedHelp)}>
             <Switch
               checked={settings.startMinimized}

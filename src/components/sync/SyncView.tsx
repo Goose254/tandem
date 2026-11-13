@@ -1,15 +1,14 @@
 import { useEffect } from "react";
 import { Ear, Mic } from "lucide-react";
-import { Card, EmptyState, Notice, Row, SyncSpinner, ViewHeader } from "../common/Layout";
-import { PrimaryButton } from "../common/Buttons";
+import { Card, EmptyState, Notice, Row, ViewHeader } from "../common/Layout";
+import { PrimaryButton, QuietButton } from "../common/Buttons";
 import { SegmentedControl, Select, Switch } from "../common/Controls";
 import { DelayControl } from "../common/DelayControl";
 import { delayFor, ipc } from "../../lib/ipc";
-import type { CalibrationEvent } from "../../lib/ipc";
 import { useStore } from "../../state/store";
 import { useLocale, useT } from "../../i18n";
 import { formatMs } from "../../lib/summary";
-import type { Translate } from "../../i18n";
+import { fixedOnOutputs, OutcomePanel, outcomeText, outcomeVisual, stepLine } from "./SyncOutcome";
 import styles from "./SyncView.module.css";
 
 /** Select value for "line up with the source". */
@@ -82,12 +81,16 @@ export function SyncView() {
   );
 }
 
+/** Why auto-sync cannot be started right now, if it cannot. */
+type Blocked = "busyElsewhere" | "noMic" | "micMissing" | "notPlaying";
+
 function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) {
   const t = useT();
   const locale = useLocale();
   const settings = useStore((s) => s.settings)!;
   const devices = useStore((s) => s.devices);
   const refresh = useStore((s) => s.refreshDevices);
+  const setView = useStore((s) => s.setView);
   const calibrating = useStore((s) => s.status?.calibrating ?? null);
   const event = useStore((s) => s.calibration[deviceId]);
   const busyHere = calibrating === deviceId;
@@ -104,6 +107,40 @@ function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) 
     { value: SOURCE, label: t((d) => d.sync.referenceSource) },
     ...others.map((o) => ({ value: o.device.id, label: o.device.name })),
   ];
+
+  const blocked: Blocked | null =
+    calibrating != null
+      ? busyHere
+        ? null
+        : "busyElsewhere"
+      : !mic
+        ? "noMic"
+        : !micConnected
+          ? "micMissing"
+          : !playing
+            ? "notPlaying"
+            : null;
+  const blockedLine =
+    blocked === "busyElsewhere"
+      ? t((d) => d.sync.blockedBusy, {
+          name: settings.outputs.find((o) => o.device.id === calibrating)?.device.name ?? "",
+        })
+      : blocked === "noMic"
+        ? t((d) => d.sync.blockedNoMic)
+        : blocked === "micMissing"
+          ? t((d) => d.sync.blockedMicMissing, { name: mic?.name ?? "" })
+          : blocked === "notPlaying"
+            ? t((d) => d.sync.blockedNotPlaying)
+            : null;
+
+  // A finished run keeps the name of the output it was lined up with, even if the choice
+  // above has changed since; a running one uses the current choice.
+  const finished = !busyHere && event && event.phase !== "listening" ? event : undefined;
+  const referenceName =
+    (finished ? settings.outputs.find((o) => o.device.id === finished.reference)?.device.name : reference?.device.name) ??
+    null;
+  const visual = outcomeVisual(event, busyHere, referenceName, t, locale);
+  const sentence = finished ? outcomeText(finished, referenceName, t, locale) : "";
 
   return (
     <Card>
@@ -139,29 +176,50 @@ function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) 
           </div>
         </Row>
       ) : null}
-      <div className={styles.run}>
+      <div className={styles.run} data-sync-run>
         <PrimaryButton
-          disabled={!micConnected || !playing || calibrating != null}
+          disabled={blocked != null || busyHere}
           onClick={() => void ipc.startCalibration(deviceId)}
+          aria-describedby={blockedLine ? `${deviceId}-blocked` : undefined}
         >
           {t((d) => d.sync.run)}
         </PrimaryButton>
-        {busyHere ? (
-          <span className={styles.progress}>
-            <SyncSpinner size={20} />
-            {t((d) => d.sync.running, { pass: event?.phase === "listening" ? event.pass : 1 })}
+        {blockedLine ? (
+          <span className={styles.blocked} id={`${deviceId}-blocked`}>
+            {blockedLine}
           </span>
-        ) : event ? (
-          <Result
-            event={event}
-            t={t}
-            locale={locale}
-            referenceName={settings.outputs.find((o) => o.device.id === event.reference)?.device.name}
-          />
         ) : (
           <span className={styles.hint}>{t((d) => d.sync.pauseHint)}</span>
         )}
       </div>
+      {busyHere ? (
+        <OutcomePanel visual={visual}>
+          <p className={styles.outcomeTitle}>
+            {t((d) => d.sync.running, { pass: event?.phase === "listening" ? event.pass : 1 })}
+          </p>
+          <p className={styles.outcomeLine}>{stepLine(event, referenceName, t)}</p>
+        </OutcomePanel>
+      ) : finished ? (
+        <OutcomePanel
+          visual={visual}
+          action={
+            fixedOnOutputs(finished) ? (
+              <QuietButton onClick={() => setView("outputs")}>{t((d) => d.sync.goOutputs)}</QuietButton>
+            ) : undefined
+          }
+        >
+          <p className={finished.phase === "done" ? styles.outcomeGood : styles.outcomeWarn}>{sentence}</p>
+        </OutcomePanel>
+      ) : null}
+      {/*
+        An outcome is spoken once, when it arrives: this region is empty while a run is in
+        progress, so the same result after a second run is announced again. The visible
+        sentence above is not a live region, so nothing is read twice, and the steps of a
+        running measurement are not narrated.
+      */}
+      <p className="sr-only" role="status" aria-live="polite">
+        {sentence}
+      </p>
       <Row label={t((d) => d.sync.resync)} helper={t((d) => d.sync.resyncHelp)}>
         <Switch
           checked={settings.resyncOnReconnect}
@@ -170,52 +228,5 @@ function MicCard({ deviceId, playing }: { deviceId: string; playing: boolean }) 
         />
       </Row>
     </Card>
-  );
-}
-
-function Result({
-  event,
-  t,
-  locale,
-  referenceName,
-}: {
-  event: CalibrationEvent;
-  t: Translate;
-  locale: string;
-  referenceName?: string;
-}) {
-  if (event.phase === "failed" && event.failure) {
-    return <span className={styles.failure}>{t((d) => d.sync.failure[event.failure!])}</span>;
-  }
-  if (event.phase === "limited" && event.lagMs != null) {
-    return (
-      <span className={styles.failure}>{t((d) => d.sync.resultLimited, { lag: formatMs(event.lagMs!, locale) })}</span>
-    );
-  }
-  if (event.phase !== "done" || event.delayMs == null) return null;
-  if (event.referenceDelayMs != null) {
-    return (
-      <span className={styles.success}>
-        {t((d) => d.sync.resultReferenceMoved, {
-          delay: event.delayMs,
-          name: referenceName ?? t((d) => d.sync.reference),
-          refDelay: event.referenceDelayMs,
-        })}
-      </span>
-    );
-  }
-  const delta = event.delayMs - (event.previousDelayMs ?? event.delayMs);
-  const delay = event.delayMs;
-  const text =
-    Math.abs(delta) < 1
-      ? t((d) => d.sync.resultSame, { delay })
-      : delta > 0
-        ? t((d) => d.sync.resultLater, { delta, delay })
-        : t((d) => d.sync.resultEarlier, { delta: -delta, delay });
-  return (
-    <span className={styles.success}>
-      {text}
-      {event.automatic ? ` ${t((d) => d.sync.automatic)}` : ""}
-    </span>
   );
 }

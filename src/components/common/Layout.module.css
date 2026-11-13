@@ -149,43 +149,33 @@
 
 /* -- Spinner: three bars sliding back and forth until they line up on the right. -- */
 .spinner {
-  position: relative;
-  display: inline-block;
+  display: block;
   flex: none;
+  overflow: visible;
 }
 
-.spinner i {
-  position: absolute;
-  right: 0;
-  height: 18%;
-  border-radius: var(--pill);
-  animation: align 1.4s var(--ease-standard) infinite;
+/* The notes step round the centre: a third of a turn, a short rest, the next third. */
+.spinnerTurn {
+  transform-box: view-box;
+  transform-origin: 128px 128px;
+  animation: turn 2.4s var(--ease-standard) infinite;
 }
 
-.spinner i:nth-child(1) {
-  top: 14%;
-  background: #1e9cc0;
-}
-
-.spinner i:nth-child(2) {
-  top: 41%;
-  background: #54b24c;
-  animation-delay: 0.15s;
-}
-
-.spinner i:nth-child(3) {
-  top: 68%;
-  background: #7a56d0;
-  animation-delay: 0.3s;
-}
-
-@keyframes align {
-  0%,
-  100% {
-    width: 40%;
+@keyframes turn {
+  0% {
+    transform: rotate(0deg);
   }
-  50% {
-    width: 92%;
+  28%,
+  33.333% {
+    transform: rotate(120deg);
+  }
+  61.333%,
+  66.667% {
+    transform: rotate(240deg);
+  }
+  94.667%,
+  100% {
+    transform: rotate(360deg);
   }
 }
 

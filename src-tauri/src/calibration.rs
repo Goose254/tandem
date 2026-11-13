@@ -78,6 +78,18 @@ impl From<CalibrationError> for Failure {
     }
 }
 
+/// Where a measurement is, so the UI can show which speaker is playing right now.
+#[derive(Debug, Clone, Copy, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum Step {
+    /// Sweep #1: the source (or the reference output) alone.
+    First,
+    /// Sweep #2: the same speaker and the output being synced.
+    Second,
+    /// Both sweeps recorded; working out the gap.
+    Analysing,
+}
+
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CalibrationEvent {
@@ -86,6 +98,8 @@ pub struct CalibrationEvent {
     /// and still plays `lag_ms` after the source, so the source is too fast for it.
     pub phase: &'static str,
     pub pass: u8,
+    /// With phase "listening": the step the pass has reached, once it has started playing.
+    pub step: Option<Step>,
     pub automatic: bool,
     /// Offset found on the last pass, output minus source.
     pub offset_ms: Option<f64>,
@@ -130,6 +144,7 @@ fn run(app: &AppHandle, device_id: &str, automatic: bool) {
         device_id: device_id.to_string(),
         phase: "listening",
         pass: 1,
+        step: None,
         automatic,
         offset_ms: None,
         previous_delay_ms: None,
@@ -171,7 +186,25 @@ fn run(app: &AppHandle, device_id: &str, automatic: bool) {
                 ..last.clone()
             },
         );
-        let offset = match measure_once(&state, device_id, reference.as_deref(), automatic) {
+        let progress = |step: Step| {
+            emit(
+                app,
+                CalibrationEvent {
+                    phase: "listening",
+                    pass,
+                    step: Some(step),
+                    ..last.clone()
+                },
+            );
+        };
+        let measured = measure_once(
+            &state,
+            device_id,
+            reference.as_deref(),
+            automatic,
+            &progress,
+        );
+        let offset = match measured {
             Ok(o) => o,
             Err(f) => {
                 outcome = Err(f);
@@ -332,6 +365,7 @@ fn measure_once(
     device_id: &str,
     reference: Option<&str>,
     automatic: bool,
+    progress: &dyn Fn(Step),
 ) -> Result<f64, Failure> {
     let mic = state.settings().mic.ok_or(Failure::NoMic)?;
     let mic_id = {
@@ -445,6 +479,7 @@ fn measure_once(
         }
     };
     let before = with_engine(state, |e| starts(e).len())?;
+    progress(Step::First);
     with_engine(state, play)?;
     // Wait until every delayed copy of sweep #1 is entirely past.
     if automatic && !to_outputs {
@@ -465,6 +500,7 @@ fn measure_once(
         quiet.silence(&heard_devices);
     }
     sleep_s(0.15);
+    progress(Step::Second);
     with_engine(state, play)?;
     let reference_wait_s = if reference.is_some() {
         longest_delay_s
@@ -479,6 +515,7 @@ fn measure_once(
     let others_heard =
         to_outputs && with_engine(state, |e| e.take_source_peak())? > OTHER_AUDIO_LEVEL;
     let samples = recording.finish().map_err(|_| Failure::MicFailed)?;
+    progress(Step::Analysing);
     if frames.len() < before + 2 {
         return Err(Failure::NotRunning);
     }

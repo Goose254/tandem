@@ -64,22 +64,50 @@ export function EmptyState({ title, line, action }: { title: string; line: strin
   );
 }
 
-/** The mark's three bars sliding into alignment: the app's busy indicator. */
+/** The three note colours of the mark, in the order they sit round the ring. */
+const NOTE_COLORS = ["#1e9cc0", "#54b24c", "#7a56d0"];
+
+/**
+ * The app's busy indicator: the mark, its three notes stepping round the centre point a third
+ * of a turn at a time. Same geometry as `src/assets/tandem-mark.svg` (one note drawn three
+ * times), so it must follow the mark if the mark ever changes. It only shows while something
+ * is in progress; with reduced motion it is the still mark.
+ */
 export function SyncSpinner({ size = 22 }: { size?: number }) {
   return (
-    <span className={styles.spinner} style={{ width: size, height: size }} aria-hidden="true">
-      <i />
-      <i />
-      <i />
-    </span>
+    <svg className={styles.spinner} viewBox="0 0 256 256" width={size} height={size} aria-hidden="true">
+      <g className={styles.spinnerTurn}>
+        {NOTE_COLORS.map((color, i) => (
+          <g key={color} transform={`rotate(${i * 120} 128 128)`} stroke={color} fill={color}>
+            <path d="M110 28 A102 102 0 0 1 229 114" fill="none" strokeWidth="18" strokeLinecap="round" />
+            <path d="M110 28 L110 100" fill="none" strokeWidth="18" strokeLinecap="round" />
+            <ellipse cx="91" cy="104" rx="27" ry="20" transform="rotate(-24 91 104)" stroke="none" />
+          </g>
+        ))}
+      </g>
+      <circle cx="128" cy="128" r="13" fill="#f2a81e" />
+    </svg>
   );
 }
 
-/** A quiet inline note: an icon and a line of text, no box. Warn tone for something to fix. */
-export function Notice({ tone = "info", children, action }: { tone?: "info" | "warn"; children: ReactNode; action?: ReactNode }) {
+/**
+ * A quiet inline note: an icon and a line of text, no box. Warn tone for something to fix.
+ * `icon` replaces the default one when a drawing says what kind of thing it is.
+ */
+export function Notice({
+  tone = "info",
+  icon,
+  children,
+  action,
+}: {
+  tone?: "info" | "warn";
+  icon?: ReactNode;
+  children: ReactNode;
+  action?: ReactNode;
+}) {
   return (
-    <div className={`${styles.notice} ${tone === "warn" ? styles.noticeWarn : ""}`}>
-      {tone === "warn" ? <AlertTriangle size={14} /> : <Info size={14} />}
+    <div className={`${styles.notice} ${tone === "warn" ? styles.noticeWarn : ""}`} data-notice={tone}>
+      {icon ?? (tone === "warn" ? <AlertTriangle size={14} /> : <Info size={14} />)}
       <p>{children}</p>
       {action ? <div className={styles.noticeAction}>{action}</div> : null}
     </div>

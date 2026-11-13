@@ -183,3 +183,8 @@
 .rate {
   color: var(--ink-3);
 }
+
+/* A dropout is worth a look: the count leaves the grey of the other figures. */
+.dropouts {
+  color: var(--warn);
+}

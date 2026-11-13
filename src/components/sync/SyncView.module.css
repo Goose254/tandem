@@ -63,34 +63,71 @@
   min-height: 42px;
 }
 
-.progress {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12.5px;
-  font-weight: 550;
-  color: var(--ink);
-}
-
-.hint {
+.hint,
+.blocked {
   flex: 1;
   min-width: 180px;
   font-size: 12px;
+  line-height: 1.4;
   color: var(--ink-3);
 }
 
-.success,
-.failure {
-  flex: 1;
-  min-width: 180px;
-  font-size: 12.5px;
-  line-height: 1.4;
+/* Why the button cannot be pressed: said plainly, in the tone of something to fix. */
+.blocked {
+  color: var(--warn);
 }
 
-.success {
+/* The drawing and the sentence for the run in progress or the one that just ended. */
+.outcome {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  padding: 4px 0;
+  animation: outcome-in var(--dur-slow) var(--ease-cover);
+}
+
+@keyframes outcome-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+.outcomeText {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.outcomeTitle,
+.outcomeLine,
+.outcomeGood,
+.outcomeWarn {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.outcomeTitle {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.outcomeLine {
+  color: var(--ink-2);
+}
+
+.outcomeGood {
   color: var(--good);
 }
 
-.failure {
+.outcomeWarn {
   color: var(--warn);
+}
+
+.outcomeAction {
+  margin: 2px 0 0 -12px;
 }

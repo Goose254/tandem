@@ -128,11 +128,16 @@ export type Failure =
   | "tooShort"
   | "busy";
 
+/** Where a running pass is: the first sweep, the second, or working out the gap. */
+export type SyncStep = "first" | "second" | "analysing";
+
 export type CalibrationEvent = {
   deviceId: string;
   /** "limited": set to 0 ms and still `lagMs` late, so the source is too fast for it. */
   phase: "listening" | "done" | "limited" | "failed";
   pass: number;
+  /** With phase "listening": the step the pass has reached, once it has started playing. */
+  step?: SyncStep | null;
   automatic: boolean;
   offsetMs: number | null;
   previousDelayMs: number | null;

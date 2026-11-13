@@ -5,7 +5,7 @@
  */
 
 import { create } from "zustand";
-import { ipc, on } from "../lib/ipc";
+import { ipc, on, simulated } from "../lib/ipc";
 import type { CalibrationEvent, Devices, Levels, OutputSetting, Settings, Snapshot } from "../lib/ipc";
 
 export type View = "outputs" | "sync" | "settings";
@@ -108,6 +108,9 @@ export async function startSync(): Promise<void> {
   await on<CalibrationEvent>("calibration", (ev) =>
     setState((s) => ({ calibration: { ...s.calibration, [ev.deviceId]: ev } })),
   );
+  // The simulated backend can open the preview on a given screen and state (`?view=`,
+  // `?sync=`, ...): it is told once everything above is listening.
+  if (simulated) void simulated.then((mock) => mock.previewReady((patch) => setState(patch)));
   window.setInterval(() => {
     if (document.visibilityState === "visible") void getState().refreshDevices();
   }, 2000);

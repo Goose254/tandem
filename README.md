@@ -41,7 +41,8 @@ No virtual audio cable or driver is needed.
   pass. The microphone's own latency cancels out. Optionally re-syncs automatically after a
   reconnect. An output can be lined up with another output instead of the source; the sweeps
   then play on those two outputs only. While it measures, Tandem silences your other programs
-  and gives them their sound back afterwards.
+  and gives them their sound back afterwards. Each step and each outcome is drawn as well as
+  said: which speaker is playing, how far the output moved, or which part to fix.
 - **Volume keys act on every output.** Windows' own volume is part of what is captured, so the
   copies follow it. When the source applies the volume itself (most Bluetooth devices),
   loopback capture cannot see it and Tandem applies it to the outputs (*experimental*).
@@ -96,7 +97,7 @@ the design, with what is covered by tests and what is only checked on real hardw
   between them is the correction.
 
 <p align="center">
-  <img src="docs/images/auto-sync.gif" width="780" alt="The Sync screen running microphone auto-sync: Run auto-sync, Listening pass 1 of 2, pass 2 of 2, then the output's delay changes from 214 ms to 202 ms. Recorded from the simulated preview; no sound was played or measured." />
+  <img src="docs/images/auto-sync.gif" width="780" alt="The Sync screen running microphone auto-sync. A small drawing shows the source playing alone, then the source and the output together, for two passes; then a time line shows the output moving 12 ms earlier and its delay changes from 214 ms to 202 ms. Recorded from the simulated preview; no sound was played or measured." />
   <br />
   <sub>Microphone auto-sync in the Sync screen. Recorded from the simulated preview: it shows the steps, nothing was played or measured and the result is made up (<a href="docs/images/auto-sync.mp4">MP4</a>).</sub>
 </p>

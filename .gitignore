@@ -5,3 +5,4 @@ target/
 src-tauri/gen/
 *.log
 .claude/settings.local.json
+screens/

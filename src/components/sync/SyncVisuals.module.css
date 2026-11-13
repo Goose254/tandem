@@ -1,0 +1,278 @@
+/*
+ * Drawings for the auto-sync states. Colours come from the tokens: ink for what is neutral,
+ * the accent for what is playing or lined up, the warn tone for the part to fix. Every
+ * animation here either ends on its own or runs only while a measurement does; with reduced
+ * motion the global rule in base.css jumps each one to its final frame.
+ */
+
+/* -- Scene: speakers, sound, microphone -- */
+.scene {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Wide enough for a device name beside its speaker; never wider than the card. */
+  width: 300px;
+  max-width: 100%;
+  flex: none;
+}
+
+.speakers {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 8px 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.node,
+.mic {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--ink-3);
+}
+
+.mic {
+  flex: none;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 76px;
+}
+
+.chip {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--pill);
+  background: var(--veil-2);
+  color: var(--ink-2);
+}
+
+.nodeLabel {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--ink-2);
+}
+
+.mic .nodeLabel {
+  max-width: 76px;
+  text-align: center;
+}
+
+/* Playing now, or listening now. */
+.node[data-live] .chip,
+.mic[data-live] .chip {
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+
+.mic[data-live] .chip {
+  animation: listen 1.6s var(--ease-standard) infinite;
+}
+
+@keyframes listen {
+  50% {
+    box-shadow: 0 0 0 5px var(--accent-weak);
+  }
+}
+
+/* The part to fix. */
+.node[data-fault] .chip,
+.mic[data-fault] .chip {
+  background: color-mix(in srgb, var(--warn) 16%, transparent);
+  color: var(--warn);
+}
+
+.node[data-fault] .nodeLabel,
+.mic[data-fault] .nodeLabel {
+  color: var(--ink);
+}
+
+.badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 13px;
+  height: 13px;
+  border-radius: var(--pill);
+  background: var(--good);
+  color: var(--surface);
+}
+
+.question {
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* Sound leaving a speaker: three arcs. */
+.waves {
+  display: block;
+  width: 44px;
+  height: 20px;
+}
+
+.waves svg {
+  display: block;
+  overflow: visible;
+}
+
+.waves path {
+  fill: none;
+  stroke: var(--ink-3);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.waves[data-state="playing"] path {
+  stroke: var(--accent);
+  animation: travel 1.1s var(--ease-standard) infinite;
+}
+
+.waves[data-state="playing"] path:nth-child(2) {
+  animation-delay: 0.14s;
+}
+
+.waves[data-state="playing"] path:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
+@keyframes travel {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+.waves[data-state="heard"] path {
+  stroke: var(--good);
+}
+
+/* Sent but never arrived: the arcs fade out before a cross. */
+.waves[data-state="unheard"] path {
+  stroke: var(--warn);
+}
+
+.waves[data-state="unheard"] path:nth-child(2) {
+  opacity: 0.55;
+}
+
+.waves[data-state="unheard"] path:nth-child(3) {
+  opacity: 0.25;
+}
+
+.waves[data-state="unheard"] path.cross {
+  opacity: 1;
+  stroke-width: 2;
+}
+
+/* Sound with holes in it. */
+.waves[data-state="stuttering"] path {
+  stroke: var(--warn);
+  stroke-dasharray: 3 4;
+}
+
+/* -- Timeline: arrivals on a time axis -- */
+.timeline {
+  flex: none;
+  width: 240px;
+}
+
+.timeline svg {
+  display: block;
+  overflow: visible;
+}
+
+.axis {
+  stroke: var(--ink-3);
+  opacity: 0.55;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.axisHead {
+  fill: none;
+  stroke: var(--ink-3);
+  opacity: 0.55;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tick {
+  stroke: var(--ink-2);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.dot {
+  fill: var(--good);
+}
+
+.dotWarn {
+  fill: var(--warn);
+}
+
+.ghost {
+  fill: none;
+  stroke: var(--ink-3);
+  stroke-width: 1.5;
+  stroke-dasharray: 2.5 2.5;
+}
+
+.gap,
+.gapWarn {
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 1 5;
+}
+
+.gap {
+  stroke: var(--ink-3);
+}
+
+.gapWarn {
+  stroke: var(--warn);
+  stroke-dasharray: none;
+}
+
+.label,
+.caption,
+.captionWarn {
+  font-size: 11px;
+  font-weight: 550;
+  fill: var(--ink-2);
+}
+
+.caption {
+  fill: var(--good);
+}
+
+.captionWarn {
+  fill: var(--warn);
+}
+
+/* What moved slides in from where it was, once. */
+.slide {
+  animation: slide 0.9s var(--ease-cover) 0.25s both;
+}
+
+@keyframes slide {
+  from {
+    transform: translateX(var(--from));
+  }
+}

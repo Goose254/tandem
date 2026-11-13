@@ -87,6 +87,13 @@ Requirements: Windows 10 or 11, Rust (MSVC toolchain, edition 2024), Node 20 or 
   controls elsewhere, no boxes around settings rows.
 - Every user-facing string exists in both `src/i18n/en.ts` and `src/i18n/fr.ts` with the same
   keys. The tray menu and tooltip strings are in `src-tauri/src/tray.rs`.
+- A drawing never carries what the text beside it does not. The sentence is the source of
+  truth; drawings are `aria-hidden`; an auto-sync outcome is announced once, through the live
+  region in `SyncView.tsx`. Colours come from the tokens (the warn tone marks the part to fix).
+- Motion is CSS and inline SVG, no animation library. Every animation either ends on its own
+  or runs only while something is in progress, and has a still state under
+  `prefers-reduced-motion` (the global rule in `src/styles/base.css` jumps it to its last
+  frame, so design that frame as the still state).
 
 **Audio behaviour: the rules to keep** (the reasons are in docs/ARCHITECTURE.md)
 
@@ -149,8 +156,10 @@ the ring. It exists in three places that must stay in step:
    `cargo test --release -p tandem tray_icon_preview -- --ignored`, which writes
    `tandem-tray-*.ppm` files to the temp directory.
 
-The busy spinner (`SyncSpinner` in `src/components/common/Layout.tsx`) still animates the three
-bars of the previous logo.
+A fourth drawing follows the mark without being it: the busy indicator (`SyncSpinner` in
+`src/components/common/Layout.tsx`) draws the same note three times from the same path data
+and turns it a third of the way at a time. If the mark's geometry ever changes, change it
+there too.
 
 ## Verifying a change
 
@@ -164,8 +173,19 @@ Automated checks do not cover real audio hardware, so say what was and was not v
   backend has a Bluetooth source and two outputs. Useful switches: `?lang=fr` for French,
   `?theme=dark` or `?theme=light` to force a theme (the default follows the system),
   `?update=1.2.3` to simulate an available update, `?update=fail` for a failed update check.
+  Any state can be opened directly: `?sync=<state>` for auto-sync (each step of a running
+  pass, each ending, each failure, each reason the Run button is unavailable),
+  `?outputs=<state>` for the Outputs screen, `?view=settings&autostart=fail`, and `?autorun=1`
+  to start a simulated run by itself. The names are listed at the top of `src/lib/mock.ts`;
+  add a name there whenever a new state is added to the UI.
   The demo build (`npm run build:demo`) takes the same switches.
   In the preview, commit typed values with real key presses (type, then Enter).
+- **Screenshots of every state:** `npm run build:demo`, then `node scripts/screenshots.mjs`.
+  It drives the installed Microsoft Edge in headless mode (no dependency) through every state,
+  in both languages and themes, at 1040×720 and 820×560, into `screens/` (git-ignored), with
+  one contact sheet per combination. `node scripts/screenshots.mjs --capture` re-records the
+  README's `docs/images/auto-sync.gif` and `.mp4` the same way; it needs `ffmpeg` on the PATH.
+  Look at the result: the script only takes the pictures.
 - **Engine on real streams, silently:** use two playback devices nobody hears, for example
   the virtual ones that a remote-play or virtual-cable driver installs. `tandem-cli list` shows
   what the machine has; ask the maintainer which ones are safe before picking. For example:
@@ -197,7 +217,9 @@ channel mixing, volume following, pause when silent, reference-output auto-sync,
 disconnects, settings backup, undo, translated errors, tray placement, CI and releases); the
 three-note icon; in-app updates (1.0.1); the first published release (1.0.2); auto-sync that
 keeps "Line up with" sweeps off the source and silences other programs for a measurement
-started by hand (branch `sync-quiet`, not merged).
+started by hand (branch `sync-quiet`, not merged); a drawing for every auto-sync state, the
+busy indicator redrawn from the mark, causes shown on device errors (branch `sync-feedback`,
+on top of `sync-quiet`, not merged).
 
 Known gaps:
 
@@ -214,5 +236,6 @@ Known gaps:
 - An in-app update has not yet been confirmed end to end. 1.0.3 is the first release that an
   installed copy (1.0.2) is offered, so it is the first chance to do it: docs/RELEASING.md,
   checklist step 10, with the result noted in its History table.
-- The busy spinner still shows the old logo's bars.
+- The update card's states that need a click (check failed, downloading, install failed) and
+  the tray popup's update line are not in the screenshot script.
 - `IAudioClient3` low-latency shared mode could shrink the minimum lag; untested.
